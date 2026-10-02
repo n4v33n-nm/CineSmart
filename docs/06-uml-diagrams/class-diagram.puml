@@ -1,0 +1,345 @@
+@startuml
+title CineSmart — Domain Model & System Class Diagram
+
+skinparam classAttributeIconSize 0
+skinparam monochrome false
+skinparam roundcorner 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam linetype ortho
+
+package "User & Security Model" {
+  enum UserRole {
+    ROLE_CUSTOMER
+    ROLE_STAFF
+    ROLE_ADMIN
+  }
+
+  class User {
+    - id : Long
+    - email : String
+    - passwordHash : String
+    - fullName : String
+    - phoneNumber : String
+    - role : UserRole
+    - createdAt : LocalDateTime
+    - isActive : boolean
+    + authenticate(rawPassword: String) : boolean
+    + updateProfile(name: String, phone: String) : void
+  }
+}
+
+package "Cinema & Catalog Model" {
+  enum ScreenType {
+    STANDARD
+    IMAX_3D
+    DOLBY_ATMOS
+  }
+
+  enum SeatTier {
+    STANDARD
+    PREMIUM
+    RECLINER
+    ACCESSIBLE_WHEELCHAIR
+    ACCESSIBLE_COMPANION
+  }
+
+  class Cinema {
+    - id : Long
+    - name : String
+    - city : String
+    - address : String
+    - contactNumber : String
+    + getActiveScreens() : List<Screen>
+  }
+
+  class Screen {
+    - id : Long
+    - screenNumber : int
+    - name : String
+    - screenType : ScreenType
+    - totalCapacity : int
+    + getSeatLayout() : List<Seat>
+  }
+
+  class Seat {
+    - id : Long
+    - rowIdentifier : String
+    - columnNumber : int
+    - seatTier : SeatTier
+    - gridX : int
+    - gridY : int
+    - isActive : boolean
+    + isAccessible() : boolean
+  }
+
+  class Movie {
+    - id : Long
+    - title : String
+    - synopsis : String
+    - durationMinutes : int
+    - language : String
+    - genre : String
+    - ageRating : String
+    - posterUrl : String
+    - isActive : boolean
+    + isCurrentlyScreening() : boolean
+  }
+}
+
+package "Show & Real-Time Inventory Model" {
+  enum ShowStatus {
+    SCHEDULED
+    IN_PROGRESS
+    COMPLETED
+    CANCELLED
+  }
+
+  enum ShowSeatStatus {
+    AVAILABLE
+    HELD
+    BOOKED
+    BLOCKED
+    WAITLIST_OFFERED
+  }
+
+  class Show {
+    - id : Long
+    - startTime : LocalDateTime
+    - endTime : LocalDateTime
+    - basePrice : BigDecimal
+    - status : ShowStatus
+    + isBookable() : boolean
+    + cancelShow() : void
+  }
+
+  class ShowSeat {
+    - id : Long
+    - price : BigDecimal
+    - status : ShowSeatStatus
+    - version : Long
+    + hold() : void
+    + book() : void
+    + release() : void
+    + offerToWaitlist() : void
+  }
+
+  enum HoldStatus {
+    ACTIVE
+    EXPIRED
+    CONVERTED_TO_BOOKING
+    RELEASED
+  }
+
+  class SeatHold {
+    - id : Long
+    - holdToken : String
+    - expiresAt : LocalDateTime
+    - status : HoldStatus
+    - createdAt : LocalDateTime
+    + isExpired(now: LocalDateTime) : boolean
+    + releaseHold() : void
+    + extendHold(durationMinutes: int) : void
+  }
+}
+
+package "Booking & Ticket Model" {
+  enum BookingStatus {
+    PENDING_PAYMENT
+    PAYMENT_PENDING_VERIFICATION
+    CONFIRMED
+    CANCELLED
+    CANCELLED_BY_CINEMA
+    EXPIRED
+  }
+
+  class Booking {
+    - id : Long
+    - bookingReference : String
+    - totalAmount : BigDecimal
+    - status : BookingStatus
+    - createdAt : LocalDateTime
+    - confirmedAt : LocalDateTime
+    + confirm() : void
+    + cancel() : void
+    + expire() : void
+    + markPendingVerification() : void
+  }
+
+  class BookingSeat {
+    - id : Long
+    - snapshotPrice : BigDecimal
+    - seatNumberSnapshot : String
+    - tierSnapshot : SeatTier
+    + getSubtotal() : BigDecimal
+  }
+
+  enum TicketStatus {
+    ISSUED
+    USED
+    VOIDED
+  }
+
+  class Ticket {
+    - id : Long
+    - ticketCode : String
+    - qrVerificationHash : String
+    - status : TicketStatus
+    - issuedAt : LocalDateTime
+    - validatedAt : LocalDateTime
+    + validateEntry(staffId: Long) : boolean
+    + voidTicket() : void
+  }
+}
+
+package "Payment & Reconciliation Model" {
+  enum PaymentStatus {
+    PENDING
+    SUCCESS
+    FAILED
+    PENDING_RECONCILIATION
+    REFUNDED
+  }
+
+  class Payment {
+    - id : Long
+    - idempotencyKey : String
+    - gatewayTxnId : String
+    - amount : BigDecimal
+    - paymentMethod : String
+    - status : PaymentStatus
+    - failureReason : String
+    - createdAt : LocalDateTime
+    - reconciledAt : LocalDateTime
+    + markSuccess(txnId: String) : void
+    + markFailed(reason: String) : void
+    + markReconciled() : void
+  }
+}
+
+package "Group Coordination & Waitlist Model" {
+  class GroupBooking {
+    - id : Long
+    - groupName : String
+    - targetPartySize : int
+    - shareableToken : String
+    + addMember(name: String, email: String) : void
+  }
+
+  class GroupMember {
+    - id : Long
+    - memberName : String
+    - memberEmail : String
+    - isNotified : boolean
+  }
+
+  enum WaitlistStatus {
+    WAITING
+    OFFERED
+    FULFILLED
+    EXPIRED
+    CANCELLED
+  }
+
+  class WaitlistEntry {
+    - id : Long
+    - queuePosition : int
+    - requestedPartySize : int
+    - preferredTier : SeatTier
+    - status : WaitlistStatus
+    - requestedAt : LocalDateTime
+    - offerExpiresAt : LocalDateTime
+    + offerSeats(offerTtlMinutes: int) : void
+    + isOfferExpired(now: LocalDateTime) : boolean
+    + claim() : void
+  }
+
+  class Notification {
+    - id : Long
+    - recipientEmail : String
+    - notificationType : String
+    - subject : String
+    - content : String
+    - sentAt : LocalDateTime
+    - isRead : boolean
+  }
+}
+
+package "Strategy & Pattern Abstractions" {
+  interface SeatAllocationStrategy <<strategy>> {
+    + recommendSeats(show: Show, partySize: int, tier: SeatTier) : List<SeatRecommendation>
+  }
+
+  class ContiguousSeatStrategy implements SeatAllocationStrategy {
+    + recommendSeats(show: Show, partySize: int, tier: SeatTier) : List<SeatRecommendation>
+  }
+
+  class FlexibleGroupSeatStrategy implements SeatAllocationStrategy {
+    + recommendSeats(show: Show, partySize: int, tier: SeatTier) : List<SeatRecommendation>
+  }
+
+  class AccessibleSeatStrategy implements SeatAllocationStrategy {
+    + recommendSeats(show: Show, partySize: int, tier: SeatTier) : List<SeatRecommendation>
+  }
+
+  interface PaymentProvider <<adapter>> {
+    + processPayment(req: PaymentRequest) : PaymentResponse
+    + verifyTransaction(txnRef: String) : PaymentVerificationResponse
+    + refund(txnRef: String, amount: BigDecimal) : RefundResponse
+  }
+
+  class MockPaymentProviderAdapter implements PaymentProvider {
+    + processPayment(req: PaymentRequest) : PaymentResponse
+    + verifyTransaction(txnRef: String) : PaymentVerificationResponse
+    + refund(txnRef: String, amount: BigDecimal) : RefundResponse
+  }
+
+  interface BookingState <<state>> {
+    + handlePaymentSuccess(booking: Booking, payment: Payment) : void
+    + handlePaymentFailure(booking: Booking, payment: Payment) : void
+    + cancel(booking: Booking) : void
+    + expire(booking: Booking) : void
+  }
+
+  class PendingPaymentState implements BookingState
+  class ConfirmedState implements BookingState
+  class CancelledState implements BookingState
+  class ExpiredState implements BookingState
+}
+
+' Relationships & Associations
+User "1" *-- "0..*" UserRole
+Cinema "1" *-- "1..*" Screen : owns >
+Screen "1" *-- "1..*" Seat : contains >
+Movie "1" <-- "0..*" Show : features <
+Screen "1" <-- "0..*" Show : scheduled on <
+
+Show "1" *-- "1..*" ShowSeat : instantiates >
+Seat "1" <-- "0..*" ShowSeat : inventory of <
+
+ShowSeat "1..*" o-- "0..1" SeatHold : held by <
+User "1" <-- "0..*" SeatHold : placed by <
+
+Booking "1" *-- "1..*" BookingSeat : consists of >
+ShowSeat "1" <-- "1" BookingSeat : references <
+User "1" <-- "0..*" Booking : placed by <
+Show "1" <-- "0..*" Booking : booked for <
+
+Booking "1" *-- "0..1" Payment : settled by >
+Booking "1" *-- "1..*" Ticket : produces >
+BookingSeat "1" <-- "1" Ticket : corresponds to <
+
+Booking "1" o-- "0..1" SeatHold : converts from >
+
+GroupBooking "1" -- "1" Booking : wraps >
+GroupBooking "1" *-- "0..*" GroupMember : includes >
+GroupMember "0..1" --> "0..1" BookingSeat : assigned to >
+
+WaitlistEntry "0..*" --> "1" Show : queues for >
+WaitlistEntry "0..*" --> "1" User : requested by >
+WaitlistEntry "0..1" o-- "0..*" ShowSeat : reserved for offer >
+
+Notification "0..*" --> "1" User : alerted to >
+
+@enduml

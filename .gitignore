@@ -1,0 +1,22 @@
+# Maven
+backend/target/
+*.class
+.project
+.classpath
+.settings/
+.idea/
+*.iml
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+*.log
+.vscode/

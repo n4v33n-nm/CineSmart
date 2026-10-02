@@ -1,0 +1,106 @@
+@startuml
+title CineSmart — Sequence Diagram: Seat Holding & Payment Confirmation
+
+autonumber
+skinparam monochrome false
+skinparam roundcorner 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+actor "Customer" as Customer
+participant "React Frontend" as UI
+participant "SeatHoldController" as HoldCtrl
+participant "SeatHoldService" as HoldSvc
+participant "PaymentController" as PayCtrl
+participant "PaymentService" as PaySvc
+participant "MockPaymentProvider" as Gateway
+participant "BookingService" as BookSvc
+participant "TicketService" as TicketSvc
+participant "NotificationService" as NotifySvc
+database "PostgreSQL Database" as DB
+
+== Phase 1: Concurrency-Safe Seat Hold Acquisition ==
+
+Customer -> UI : Select Seats [E5, E6, E7] & Click "Hold & Checkout"
+activate UI
+UI -> HoldCtrl : POST /api/v1/seat-holds\n{showId: 101, seatIds: [501, 502, 503]}
+activate HoldCtrl
+
+HoldCtrl -> HoldSvc : acquireTemporaryHold(userId, showId, seatIds)
+activate HoldSvc
+
+HoldSvc -> DB : BEGIN TRANSACTION\nSELECT * FROM show_seats WHERE id IN (501,502,503)\nFOR UPDATE
+activate DB
+DB --> HoldSvc : 3 rows locked (status = 'AVAILABLE')
+
+HoldSvc -> DB : UPDATE show_seats SET status = 'HELD', version = version + 1\nWHERE id IN (501,502,503)
+HoldSvc -> DB : INSERT INTO seat_holds (user_id, show_id, expires_at, status)\nVALUES (user_1, 101, NOW() + INTERVAL '8 min', 'ACTIVE')
+HoldSvc -> DB : INSERT INTO bookings (user_id, show_id, status, total_amount)\nVALUES (user_1, 101, 'PENDING_PAYMENT', 45.00)
+HoldSvc -> DB : INSERT INTO booking_seats (booking_id, show_seat_id, unit_price)\nVALUES (book_10, 501, 15.00), (book_10, 502, 15.00)...
+HoldSvc -> DB : COMMIT TRANSACTION
+deactivate DB
+
+HoldSvc --> HoldCtrl : SeatHoldResponseDTO (holdId: 88, bookingId: 10, expiresAt: "19:58:00")
+deactivate HoldSvc
+HoldCtrl --> UI : HTTP 201 Created (holdId, bookingId, expiresAt)
+deactivate HoldCtrl
+
+UI -> Customer : Display Checkout Page with 8-Minute Countdown Timer
+
+== Phase 2: Payment Execution & Booking Confirmation ==
+
+Customer -> UI : Enter Card Details & Submit Payment
+UI -> PayCtrl : POST /api/v1/payments/process\nHeader: Idempotency-Key: "uuid-pay-991"\n{bookingId: 10, holdId: 88, amount: 45.00}
+activate PayCtrl
+
+PayCtrl -> PaySvc : processPayment(paymentDTO, idempotencyKey)
+activate PaySvc
+
+PaySvc -> DB : SELECT * FROM seat_holds WHERE id = 88 AND status = 'ACTIVE'
+activate DB
+DB --> PaySvc : Hold valid (expires in 5 minutes)
+deactivate DB
+
+PaySvc -> Gateway : processPayment(amount: 45.00, token: "tok_visa_valid")
+activate Gateway
+Gateway --> PaySvc : PaymentResponse(status: SUCCESS, txnRef: "TXN-88219")
+deactivate Gateway
+
+PaySvc -> DB : BEGIN TRANSACTION
+activate DB
+PaySvc -> DB : INSERT INTO payments (booking_id, amount, status, gateway_txn_id)\nVALUES (10, 45.00, 'SUCCESS', 'TXN-88219')
+
+PaySvc -> BookSvc : confirmBooking(bookingId = 10)
+activate BookSvc
+
+BookSvc -> DB : UPDATE bookings SET status = 'CONFIRMED', confirmed_at = NOW()\nWHERE id = 10
+BookSvc -> DB : UPDATE show_seats SET status = 'BOOKED' WHERE id IN (501,502,503)
+BookSvc -> DB : UPDATE seat_holds SET status = 'CONVERTED_TO_BOOKING' WHERE id = 88
+
+BookSvc -> TicketSvc : generateTicketsForBooking(bookingId = 10)
+activate TicketSvc
+TicketSvc -> DB : INSERT INTO tickets (booking_seat_id, ticket_code, qr_hash, status)\nVALUES (seat_501, 'TKT-001', 'hash_abc', 'ISSUED')...
+TicketSvc --> BookSvc : List<TicketDTO>
+deactivate TicketSvc
+
+BookSvc -> NotifySvc : publishEvent(new BookingConfirmedEvent(bookingId = 10))
+activate NotifySvc
+NotifySvc -> Customer : Async Email / SMS ("Your CineSmart Tickets are Confirmed!")
+deactivate NotifySvc
+
+BookSvc --> PaySvc : BookingConfirmationDTO
+deactivate BookSvc
+
+PaySvc -> DB : COMMIT TRANSACTION
+deactivate DB
+
+PaySvc --> PayCtrl : PaymentSuccessDTO
+deactivate PaySvc
+PayCtrl --> UI : HTTP 200 OK (Booking Confirmed, Tickets with QR Code data)
+deactivate PayCtrl
+
+UI -> Customer : Render Confirmation Screen with Digital QR Tickets
+deactivate UI
+
+@enduml

@@ -1,0 +1,102 @@
+@startuml
+title CineSmart — Component Diagram
+
+skinparam componentStyle uml2
+skinparam monochrome false
+skinparam roundcorner 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+
+package "Frontend Layer (React 18 SPA)" {
+  component [Authentication & Profile View] as ViewAuth
+  component [Catalog & Showtime Browser] as ViewCatalog
+  component [Interactive Seat Map Component] as ViewSeatMap
+  component [Group Seating Recommendation Modal] as ViewGroupModal
+  component [Checkout & Hold Timer Component] as ViewCheckout
+  component [Waitlist Management Modal] as ViewWaitlist
+  component [Staff QR Scanner Interface] as ViewScanner
+  component [Admin Management Dashboard] as ViewAdmin
+  component [API Client (Axios / Fetch)] as ApiClient
+
+  ViewCatalog ..> ApiClient : uses
+  ViewSeatMap ..> ApiClient : uses
+  ViewGroupModal ..> ApiClient : uses
+  ViewCheckout ..> ApiClient : uses
+  ViewWaitlist ..> ApiClient : uses
+  ViewScanner ..> ApiClient : uses
+  ViewAdmin ..> ApiClient : uses
+}
+
+interface "REST API (JSON over HTTPS)" as HttpApi
+ApiClient -- HttpApi
+
+package "Backend Application (Spring Boot 3 / Java 17)" {
+
+  package "Web & Security Layer" {
+    component [Spring Security (JWT Filter)] as SecurityComp
+    component [REST Controllers\n(Auth, Catalog, Shows, Holds,\nBookings, Payments, Waitlist, Admin)] as Controllers
+    HttpApi --> SecurityComp
+    SecurityComp --> Controllers
+  }
+
+  package "Core Business Service Layer" {
+    component [GroupSeatingService] as GroupSvc
+    component [SeatAllocationStrategy\n(Contiguous, Flexible, Accessible)] as StratComp
+    component [SeatHoldService] as HoldSvc
+    component [BookingLifecycleEngine] as BookingEng
+    component [PaymentRecoveryService] as RecoverySvc
+    component [PaymentReconciliationWorker\n(@Scheduled Task)] as ReconcileWorker
+    component [WaitlistDispatcherService] as WaitlistSvc
+    component [TicketValidationService] as TicketSvc
+    component [NotificationDispatcher] as NotifyComp
+
+    Controllers --> GroupSvc
+    Controllers --> HoldSvc
+    Controllers --> BookingEng
+    Controllers --> WaitlistSvc
+    Controllers --> TicketSvc
+
+    GroupSvc --> StratComp
+    HoldSvc --> BookingEng
+    BookingEng --> RecoverySvc
+    RecoverySvc --> ReconcileWorker
+    HoldSvc ..> WaitlistSvc : notifies on release
+    BookingEng ..> NotifyComp : domain events
+    WaitlistSvc ..> NotifyComp : offer notifications
+  }
+
+  package "Data Access Layer (Spring Data JPA / Hibernate)" {
+    component [JPA Repositories\n(ShowSeat, Booking, Payment,\nSeatHold, Waitlist, Ticket)] as Repositories
+
+    GroupSvc --> Repositories
+    HoldSvc --> Repositories
+    BookingEng --> Repositories
+    RecoverySvc --> Repositories
+    WaitlistSvc --> Repositories
+    TicketSvc --> Repositories
+  }
+
+  package "Payment Adapter Layer" {
+    interface "PaymentProvider" as IPaymentProvider
+    component [MockPaymentProviderAdapter] as MockPaymentAdapter
+    IPaymentProvider <|.. MockPaymentAdapter
+    BookingEng --> IPaymentProvider
+    RecoverySvc --> IPaymentProvider
+  }
+}
+
+database "PostgreSQL 15+ Database" {
+  component [ACID Relational Engine\n(Row Locks, Partial Unique Indexes,\nForeign Keys, Constraints)] as PostgresDB
+  Repositories --> PostgresDB : JDBC / SQL
+}
+
+package "External / Simulation Systems" {
+  component [Mock Payment Gateway Simulator\n(Success, Declined, Timeout)] as MockGateway
+  component [Mock Mail / SMS Notification Server] as MockNotifier
+
+  MockPaymentAdapter --> MockGateway : HTTP REST / Webhooks
+  NotifyComp --> MockNotifier : SMTP / Log Dispatch
+}
+
+@enduml

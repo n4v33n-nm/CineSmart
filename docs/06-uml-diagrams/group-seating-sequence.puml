@@ -1,0 +1,79 @@
+@startuml
+title CineSmart — Sequence Diagram: Smart Group-Seat Recommendations
+
+autonumber
+skinparam monochrome false
+skinparam roundcorner 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+actor "Group Organizer" as User
+participant "React Frontend\n(SeatMapModal)" as UI
+participant "GroupSeatingController" as Controller
+participant "GroupSeatingService" as Service
+participant "StrategyFactory" as Factory
+participant "ContiguousSeatStrategy" as ContigStrategy
+participant "FlexibleGroupSeatStrategy" as FlexStrategy
+participant "ShowSeatRepository" as Repo
+database "PostgreSQL Database" as DB
+
+User -> UI : Enter Party Size (N=5), Tier (PREMIUM), Accessibility (false)
+activate UI
+UI -> Controller : POST /api/v1/recommendations/group-seats\n{showId: 101, partySize: 5, tier: "PREMIUM", allowSplit: true}
+activate Controller
+
+Controller -> Service : getSmartRecommendations(reqDTO)
+activate Service
+
+Service -> Repo : findAvailableSeatsWithCoordinates(showId, "AVAILABLE")
+activate Repo
+Repo -> DB : SELECT * FROM show_seats ss JOIN seats s ON ss.seat_id = s.id\nWHERE ss.show_id = 101 AND ss.status = 'AVAILABLE'
+activate DB
+DB --> Repo : List<ShowSeatDTO>
+deactivate DB
+Repo --> Service : List<ShowSeatDTO>
+deactivate Repo
+
+Service -> Factory : resolveStrategy(reqDTO)
+activate Factory
+Factory --> Service : ContiguousSeatStrategy
+deactivate Factory
+
+Service -> ContigStrategy : recommendSeats(availableSeats, partySize=5, tier="PREMIUM")
+activate ContigStrategy
+
+alt Contiguous Single-Row Blocks Exist (Happy Path)
+  ContigStrategy -> ContigStrategy : Group by rowIdentifier\nFind contiguous sequences of length 5
+  ContigStrategy -> ContigStrategy : Calculate CenterProximityScore(seq)\nScore = 100 - (DistanceToCenter * Weight)
+  ContigStrategy -> ContigStrategy : Sort descending by score, limit top 3
+  ContigStrategy --> Service : List<SeatRecommendation> (3 Contiguous Options)
+else No Contiguous Block of Size 5 Available in Row
+  ContigStrategy --> Service : Empty List (No contiguous block found)
+  deactivate ContigStrategy
+
+  Service -> Factory : getFallbackStrategy("FLEXIBLE_SPLIT")
+  activate Factory
+  Factory --> Service : FlexibleGroupSeatStrategy
+  deactivate Factory
+
+  Service -> FlexStrategy : recommendSeats(availableSeats, partySize=5, tier="PREMIUM")
+  activate FlexStrategy
+  FlexStrategy -> FlexStrategy : Partition size 5 into sub-clusters (e.g., 3 + 2)
+  FlexStrategy -> FlexStrategy : Identify adjacent rows (Row E & Row F)
+  FlexStrategy -> FlexStrategy : Measure column alignment overlap & center distance
+  FlexStrategy -> FlexStrategy : Rank split arrangements with penalty factor
+  FlexStrategy --> Service : List<SeatRecommendation> (Split-Row Options)
+  deactivate FlexStrategy
+end
+
+Service --> Controller : GroupRecommendationResponseDTO
+deactivate Service
+
+Controller --> UI : HTTP 200 OK (JSON with Top 3 Scored Options)
+deactivate Controller
+
+UI -> User : Render visual previews of recommended seat blocks\nwith match score badges (e.g. 94% match)
+deactivate UI
+
+@enduml

@@ -1,0 +1,111 @@
+@startuml
+title CineSmart — Use-Case Diagram
+
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam roundcorner 10
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+actor "Customer" as Customer
+actor "Group Organizer" as Organizer
+actor "Cinema Staff" as Staff
+actor "Administrator" as Admin
+
+actor "Payment Gateway" as PG <<external system>>
+actor "Notification Service" as NS <<external system>>
+
+Customer <|-- Organizer
+
+rectangle "CineSmart Movie Ticket Booking Platform" {
+
+  package "Catalog & Discovery" {
+    usecase "UC01: Browse Movies & Shows" as UC01
+    usecase "UC02: View Interactive Seat Map" as UC02
+  }
+
+  package "Smart Group Seating" {
+    usecase "UC03: Request Smart Group Seating" as UC03
+    usecase "UC04: Select & Customize Seating Block" as UC04
+    usecase "UC05: Coordinate Group Members" as UC05
+  }
+
+  package "Reservation & Holding" {
+    usecase "UC06: Hold Seats Temporarily" as UC06
+    usecase "UC07: Release Expired Seat Hold" as UC07
+  }
+
+  package "Payment & Recovery Engine" {
+    usecase "UC08: Process Checkout Payment" as UC08
+    usecase "UC09: Recover Failed / Timed-out Payment" as UC09
+    usecase "UC10: Reconcile Ambiguous Payment" as UC10
+  }
+
+  package "Booking Lifecycle & Ticketing" {
+    usecase "UC11: Confirm Booking & Issue QR Tickets" as UC11
+    usecase "UC12: Cancel Booking & Track Refund" as UC12
+    usecase "UC13: View Booking History" as UC13
+  }
+
+  package "Fair Waitlist Engine" {
+    usecase "UC14: Join Sold-Out Waitlist" as UC14
+    usecase "UC15: Receive & Claim Seat Offer" as UC15
+    usecase "UC16: Expire Unclaimed Waitlist Offer" as UC16
+  }
+
+  package "Administration & Operations" {
+    usecase "UC17: Manage Movies, Screens & Shows" as UC17
+    usecase "UC18: Configure Seating & Pricing Tiers" as UC18
+    usecase "UC19: Cancel Show & Process Mass Refund" as UC19
+    usecase "UC20: Validate Ticket QR at Gate" as UC20
+  }
+}
+
+' Customer Connections
+Customer --> UC01
+Customer --> UC02
+Customer --> UC06
+Customer --> UC08
+Customer --> UC12
+Customer --> UC13
+Customer --> UC14
+Customer --> UC15
+
+' Organizer Connections
+Organizer --> UC03
+Organizer --> UC04
+Organizer --> UC05
+
+' Admin Connections
+Admin --> UC17
+Admin --> UC18
+Admin --> UC19
+
+' Staff Connections
+Staff --> UC20
+
+' External System Connections
+UC08 --> PG : <<transacts>>
+UC10 --> PG : <<queries status>>
+UC11 --> NS : <<sends confirmation>>
+UC12 --> NS : <<sends cancellation notice>>
+UC15 --> NS : <<sends claim offer link>>
+UC19 --> NS : <<sends show cancellation>>
+
+' Internal Relationships (Includes & Extends)
+UC03 .> UC02 : <<include>>
+UC04 .> UC03 : <<include>>
+UC05 .> UC04 : <<extend>>
+UC06 .> UC02 : <<include>>
+UC08 .> UC06 : <<include>>
+UC08 <. UC09 : <<extend>>
+UC09 .> UC10 : <<include>>
+UC11 .> UC08 : <<include>>
+UC15 .> UC06 : <<include>>
+UC07 ..> UC15 : <<triggers if waitlisted>>
+UC12 ..> UC15 : <<triggers if waitlisted>>
+UC16 ..> UC07 : <<cascades>>
+
+@enduml

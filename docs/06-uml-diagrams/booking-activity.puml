@@ -1,0 +1,109 @@
+@startuml
+title CineSmart — Activity Diagram: End-to-End Booking & Recovery Workflow
+
+start
+
+:Customer browses Movie Catalog;
+:Selects Movie, Cinema, and Showtime;
+
+if (Booking Mode?) then (Smart Group Mode)
+  :Enter Party Size (2-10) and Tier Preferences;
+  :System executes Group Seating Algorithm;
+  if (Suitable arrangement found?) then (yes)
+    :Display Top 3 Ranked Arrangements;
+    :Organizer selects preferred arrangement;
+  else (no)
+    :Display "No Group Arrangements Available";
+    if (Join Waitlist?) then (yes)
+      :Register for Show Waitlist;
+      stop
+    else (no)
+      :Return to Seat Map;
+    endif
+  endif
+else (Manual Selection)
+  :Customer inspects Interactive Seat Map;
+  :Customer manually selects seat nodes;
+endif
+
+:Customer clicks "Proceed to Checkout";
+
+partition "Transactional Seat Hold (ACID)" {
+  :System attempts atomic lock (SELECT FOR UPDATE);
+  if (All selected seats AVAILABLE?) then (yes)
+    :Update ShowSeats to HELD;
+    :Create SeatHold with 8-minute TTL;
+    :Create Booking (PENDING_PAYMENT);
+    :Start 8-Minute Countdown Timer on UI;
+  else (conflict / already held)
+    :System aborts transaction (Rollback);
+    :Display "Seats already held by another patron";
+    if (Join Waitlist for Show?) then (yes)
+      :Register Waitlist Entry;
+      stop
+    else (no)
+      :Return to Seat Map;
+      stop
+    endif
+  endif
+}
+
+:Customer enters Payment Information;
+
+if (Hold Timer expired before submission?) then (yes - timed out)
+  :System rejects late submission (HTTP 410);
+  :Release held seats;
+  if (Waitlist queue has waiting patrons?) then (yes)
+    :Offer seats to next in Waitlist;
+  else (no)
+    :Mark ShowSeats AVAILABLE;
+  endif
+  stop
+else (no - submitted within TTL)
+  :Send Payment Request to Gateway;
+endif
+
+partition "Payment Evaluation & Recovery Engine" {
+  if (Gateway Response?) then (Immediate SUCCESS)
+    :Record Payment (SUCCESS);
+  elseif (Immediate DECLINE) then
+    :Record Payment (FAILED);
+    if (Hold time still remaining?) then (yes)
+      :Prompt user to retry with another card;
+      detach
+    else (no)
+      :Release SeatHold;
+      :Mark Booking EXPIRED;
+      stop
+    endif
+  else (NETWORK TIMEOUT / DROPPED)
+    :Mark Booking PAYMENT_PENDING_VERIFICATION;
+    :Extend SeatHold by +3 minutes;
+    :Display "Verifying transaction with bank...";
+    repeat
+      :Wait 30 seconds;
+      :Scheduled Reconciler queries Gateway API;
+    repeat while (Gateway still processing? and attempts < 3) is (yes)
+    if (Reconciliation Outcome == SUCCESS?) then (yes)
+      :Record Payment (SUCCESS);
+    else (no / definitively failed)
+      :Record Payment (FAILED);
+      :Release SeatHold;
+      :Mark Booking FAILED;
+      stop
+    endif
+  endif
+}
+
+partition "Confirmation & Fulfillment" {
+  :Update Booking to CONFIRMED;
+  :Update ShowSeats to BOOKED;
+  :Convert SeatHold to CONVERTED_TO_BOOKING;
+  :Generate Tickets with signed QR Verification Hashes;
+  :Dispatch Async Confirmation Notification (Email/SMS);
+  :Render Confirmation Screen with Scannable QR Codes;
+}
+
+stop
+
+@enduml

@@ -1,0 +1,58 @@
+@startuml
+title CineSmart — Deployment Diagram (Proposed Deployment Environment)
+
+skinparam monochrome false
+skinparam roundcorner 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+
+node "Client Workstation / Smartphone" as ClientNode <<device>> {
+  node "Modern Web Browser\n(Chrome, Firefox, Safari, Edge)" as BrowserNode <<execution environment>> {
+    artifact "React 18 SPA Bundle\n(HTML5, CSS3, JS, React Virtual DOM)" as ReactApp
+  }
+}
+
+node "Application Server Host (Linux / Windows / Docker)" as AppServerNode <<device>> {
+
+  node "Static Web Server (Nginx / Node.js Server)" as WebServer <<execution environment>> {
+    artifact "Static Web Assets\n(index.html, bundle.js, styles.css)" as StaticAssets
+  }
+
+  node "Java Runtime Environment (OpenJDK 17 LTS)" as JRENode <<execution environment>> {
+    node "Embedded Apache Tomcat 10.1 (Port 8080)" as TomcatContainer {
+      artifact "cinesmart-api.jar\n(Spring Boot 3 Executable)" as BackendApp {
+        component "Spring Security (JWT)" as SecModule
+        component "Spring MVC REST Controllers" as RestModule
+        component "CineSmart Core Service Engines\n(Group Seating, Recovery, Waitlist)" as CoreEngine
+        component "Spring Data JPA / Hibernate" as JpaModule
+        component "HikariCP Connection Pool\n(Min: 5, Max: 20 connections)" as HikariPool
+      }
+    }
+  }
+}
+
+node "Database Server Host" as DbServerNode <<device>> {
+  node "PostgreSQL 15+ Database Engine (Port 5432)" as PostgresNode <<execution environment>> {
+    database "cinesmart_db" as DatabaseInstance {
+      artifact "Schema & Tables\n(users, shows, show_seats, bookings,\nseat_holds, payments, waitlist)" as DbTables
+      artifact "Indexes & Constraints\n(PK, FK, Partial Unique Indexes,\nRow-Level Locks)" as DbIndexes
+    }
+  }
+}
+
+node "External Simulation Host" as ExternalMockNode <<device>> {
+  node "Mock Payment Gateway Simulator (Port 8085)" as MockPgNode <<execution environment>> {
+    artifact "Mock Payment Provider Service\n(Simulates Success, Declined, 15s Timeout)" as MockPgArtifact
+  }
+}
+
+' Physical Communication Protocols
+BrowserNode -- WebServer : HTTP/HTTPS (Port 80/3000)\nFetch static React bundle
+BrowserNode -- TomcatContainer : HTTPS / JSON REST API (Port 8080)\nJWT Bearer Token
+
+HikariPool -- PostgresNode : TCP/IP (Port 5432)\nJDBC Protocol with SSL
+
+TomcatContainer -- MockPgNode : HTTP/REST (Port 8085)\nPayment Authorization & Webhooks
+
+@enduml

@@ -1,0 +1,114 @@
+@startuml
+title CineSmart — Sequence Diagram: Payment Failure, Timeout & Recovery Engine
+
+autonumber
+skinparam monochrome false
+skinparam roundcorner 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+actor "Customer" as Customer
+participant "React Frontend" as UI
+participant "PaymentController" as PayCtrl
+participant "PaymentService" as PaySvc
+participant "MockPaymentProvider" as Gateway
+participant "ReconciliationService\n(Scheduled Worker)" as Reconciler
+participant "BookingService" as BookSvc
+participant "WaitlistService" as WaitlistSvc
+database "PostgreSQL Database" as DB
+
+== Scenario A: Verified Payment Failure (Card Declined) ==
+
+Customer -> UI : Submit Payment (Card with Insufficient Funds)
+activate UI
+UI -> PayCtrl : POST /api/v1/payments/process {bookingId: 10, card: "declined_token"}
+activate PayCtrl
+
+PayCtrl -> PaySvc : processPayment(...)
+activate PaySvc
+PaySvc -> Gateway : processPayment(...)
+activate Gateway
+Gateway --> PaySvc : PaymentResponse(status: DECLINED, reason: "INSUFFICIENT_FUNDS")
+deactivate Gateway
+
+PaySvc -> DB : INSERT INTO payments (booking_id, status, failure_reason)\nVALUES (10, 'FAILED', 'INSUFFICIENT_FUNDS')
+activate DB
+deactivate DB
+
+PaySvc --> PayCtrl : PaymentFailureDTO(canRetry: true, remainingHoldSeconds: 240)
+deactivate PaySvc
+PayCtrl --> UI : HTTP 402 Payment Required\n{"message": "Card declined", "remainingSeconds": 240}
+deactivate PayCtrl
+
+UI -> Customer : Display: "Payment declined! Seats held for 4 more minutes.\nTry another payment method."
+
+== Scenario B: Gateway Timeout & Active Background Reconciliation ==
+
+Customer -> UI : Submit Payment with Alternate Card
+UI -> PayCtrl : POST /api/v1/payments/process {bookingId: 10, card: "alt_token"}
+activate PayCtrl
+
+PayCtrl -> PaySvc : processPayment(...)
+activate PaySvc
+PaySvc -> Gateway : processPayment(...)
+activate Gateway
+Gateway --x PaySvc : [HTTP Read Timeout after 15s / Network Drop]
+deactivate Gateway
+
+note over PaySvc, DB
+  Crucial Architectural Decision:
+  Do NOT treat unknown outcome as verified failure.
+  Do NOT release seats prematurely!
+end note
+
+PaySvc -> DB : BEGIN TRANSACTION
+activate DB
+PaySvc -> DB : UPDATE bookings SET status = 'PAYMENT_PENDING_VERIFICATION' WHERE id = 10
+PaySvc -> DB : UPDATE seat_holds SET expires_at = expires_at + INTERVAL '3 min'\nWHERE id = 88
+PaySvc -> DB : INSERT INTO payments (booking_id, status, gateway_txn_id)\nVALUES (10, 'PENDING_RECONCILIATION', 'PENDING_TXN_991')
+PaySvc -> DB : COMMIT TRANSACTION
+deactivate DB
+
+PaySvc --> PayCtrl : PaymentPendingVerificationDTO(retryCheckAfterSeconds: 15)
+deactivate PaySvc
+PayCtrl --> UI : HTTP 202 Accepted\n{"status": "PENDING_VERIFICATION", "message": "Confirming payment with bank..."}
+deactivate PayCtrl
+
+UI -> Customer : Display Spinner: "Verifying transaction with your banking provider..."
+
+... 45 seconds later: Background Scheduled Sweeper Triggers ...
+
+Reconciler -> DB : SELECT * FROM payments WHERE status = 'PENDING_RECONCILIATION'
+activate Reconciler
+activate DB
+DB --> Reconciler : Payment record (txnRef: "PENDING_TXN_991", bookingId: 10)
+deactivate DB
+
+Reconciler -> Gateway : verifyTransactionStatus("PENDING_TXN_991")
+activate Gateway
+Gateway --> Reconciler : PaymentVerificationResponse(status: SUCCESS, debitedAt: "19:59:12")
+deactivate Gateway
+
+Reconciler -> DB : BEGIN TRANSACTION
+activate DB
+Reconciler -> DB : UPDATE payments SET status = 'SUCCESS', reconciled_at = NOW()\nWHERE id = payment_id
+Reconciler -> BookSvc : confirmBooking(bookingId = 10)
+activate BookSvc
+BookSvc -> DB : UPDATE bookings SET status = 'CONFIRMED' WHERE id = 10
+BookSvc -> DB : UPDATE show_seats SET status = 'BOOKED' WHERE id IN (501,502,503)
+BookSvc -> DB : UPDATE seat_holds SET status = 'CONVERTED_TO_BOOKING' WHERE id = 88
+deactivate BookSvc
+Reconciler -> DB : COMMIT TRANSACTION
+deactivate DB
+deactivate Reconciler
+
+UI -> PayCtrl : GET /api/v1/bookings/10/status (Polling)
+activate PayCtrl
+PayCtrl --> UI : HTTP 200 OK {"bookingStatus": "CONFIRMED"}
+deactivate PayCtrl
+
+UI -> Customer : Update Screen: "Success! Your payment was verified and tickets are ready."
+deactivate UI
+
+@enduml

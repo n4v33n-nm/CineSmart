@@ -1,0 +1,51 @@
+@startuml
+title CineSmart — State Machine Diagram: Booking Lifecycle
+
+skinparam monochrome false
+skinparam roundcorner 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+[*] --> PENDING_PAYMENT : User locks seats / hold acquired\n[Seats in AVAILABLE state]
+
+state PENDING_PAYMENT {
+  PENDING_PAYMENT : entry / start 8-minute TTL timer
+  PENDING_PAYMENT : entry / snapshot ticket prices into BookingSeat
+}
+
+PENDING_PAYMENT --> CONFIRMED : Payment Gateway returns SUCCESS\n/ issueTickets(), markSeatsBooked()
+
+PENDING_PAYMENT --> PAYMENT_PENDING_VERIFICATION : Gateway timeout or ambiguous socket drop\n/ extendHoldBy3Minutes(), startReconciliationJob()
+
+PENDING_PAYMENT --> EXPIRED : Hold TTL expires (8 min elapsed)\n/ releaseSeats(), notifyUser()
+
+PENDING_PAYMENT --> CANCELLED : Customer clicks "Cancel Checkout"\n/ releaseSeats()
+
+state PAYMENT_PENDING_VERIFICATION {
+  PAYMENT_PENDING_VERIFICATION : entry / prevent seat release during inquiry
+  PAYMENT_PENDING_VERIFICATION : do / poll gateway status every 30s
+}
+
+PAYMENT_PENDING_VERIFICATION --> CONFIRMED : Reconciliation confirms SUCCESS\n(or delayed webhook received)\n/ issueTickets(), markSeatsBooked()
+
+PAYMENT_PENDING_VERIFICATION --> FAILED : Reconciliation confirms FAILED\n(or max retries exceeded)\n/ releaseSeats(), notifyFailure()
+
+state CONFIRMED {
+  CONFIRMED : entry / QR tickets active
+  CONFIRMED : entry / send confirmation email
+}
+
+CONFIRMED --> CANCELLED : Customer requests cancellation\n[now <= showStartTime - 2 hours]\n/ releaseSeatsToWaitlist(), issueRefundRecord()
+
+CONFIRMED --> CANCELLED_BY_CINEMA : Admin cancels show\n[Show cancelled due to technical fault]\n/ issue100PercentRefund(), sendEmergencyNotification()
+
+CONFIRMED --> COMPLETED : Show start time arrives and tickets validated\n/ markHistoryArchived()
+
+FAILED --> [*]
+EXPIRED --> [*]
+CANCELLED --> [*]
+CANCELLED_BY_CINEMA --> [*]
+COMPLETED --> [*]
+
+@enduml

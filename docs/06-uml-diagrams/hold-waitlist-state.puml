@@ -1,0 +1,71 @@
+@startuml
+title CineSmart — State Machine Diagram: Seat Holds & Waitlist Offers
+
+skinparam monochrome false
+skinparam roundcorner 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+
+state "ShowSeat Lifecycle" as ShowSeatLifecycle {
+  [*] --> AVAILABLE : Show Created & Initialized
+
+  AVAILABLE --> HELD : Customer selects seat & initiates checkout\n/ createSeatHold(TTL = 8m)
+  
+  HELD --> BOOKED : Payment verified as SUCCESS\n/ convertHoldToBooking()
+
+  HELD --> AVAILABLE : Hold expires & NO waitlist entries exist\n/ logSeatRelease()
+
+  HELD --> WAITLIST_OFFERED : Hold expires & eligible waitlist entry exists\n/ reserveSeatForWaitlist(TTL = 10m)
+
+  BOOKED --> WAITLIST_OFFERED : Booking cancelled & eligible waitlist entry exists\n/ reserveSeatForWaitlist(TTL = 10m)
+
+  BOOKED --> AVAILABLE : Booking cancelled & NO waitlist entries exist\n/ logSeatRelease()
+
+  WAITLIST_OFFERED --> HELD : Waitlist customer claims offer\n/ createSeatHold(TTL = 8m)
+
+  WAITLIST_OFFERED --> WAITLIST_OFFERED : Claim window expires; offered to next in queue\n/ restart10MinuteClaimTimer()
+
+  WAITLIST_OFFERED --> AVAILABLE : Claim window expires & queue exhausted\n/ logSeatRelease()
+
+  AVAILABLE --> BLOCKED : Admin maintenance or screen fault\n/ disableSeat()
+  BLOCKED --> AVAILABLE : Admin restores seat
+}
+
+--
+
+state "WaitlistEntry Lifecycle" as WaitlistLifecycle {
+  [*] --> WAITING : Customer registers for sold-out show\n/ assignQueuePosition()
+
+  WAITING --> OFFERED : Matching seats released\n/ generateClaimToken(), start10MinuteTimer(), notifyCustomer()
+
+  OFFERED --> FULFILLED : Customer claims within 10 minutes\n/ convertToCheckoutHold()
+
+  OFFERED --> EXPIRED : 10 minutes elapse without claim\n/ triggerNextWaitlistCandidate()
+
+  WAITING --> CANCELLED_BY_USER : Customer cancels waitlist request\n/ recalculateQueuePositions()
+
+  FULFILLED --> [*]
+  EXPIRED --> [*]
+  CANCELLED_BY_USER --> [*]
+}
+
+--
+
+state "SeatHold Entity Lifecycle" as SeatHoldLifecycle {
+  [*] --> ACTIVE : Hold acquired [Pessimistic lock acquired]
+  
+  ACTIVE --> ACTIVE : Extended by +3 min\n[Gateway timeout / reconciliation]
+
+  ACTIVE --> CONVERTED_TO_BOOKING : Payment successful\n[Booking transitions to CONFIRMED]
+
+  ACTIVE --> RELEASED : Customer cancels checkout manually
+
+  ACTIVE --> EXPIRED : Countdown reaches 0 (8 min elapsed)
+
+  CONVERTED_TO_BOOKING --> [*]
+  RELEASED --> [*]
+  EXPIRED --> [*]
+}
+
+@enduml
