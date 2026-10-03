@@ -1,0 +1,189 @@
+@startuml
+title CineSmart — Class Diagram: Phase 3 Smart Group Seating & Allocation Engine
+
+skinparam monochrome false
+skinparam roundcorner 8
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+package "Presentation Layer (REST)" {
+    class GroupSeatingController {
+        - groupSeatingService: GroupSeatingService
+        + getGroupSeatingRecommendations(showId: Long, request: GroupSeatingRequest): ResponseEntity<ApiResponse<GroupSeatingResponseDTO>>
+        + getRecommendationsAlias(showId: Long, request: GroupSeatingRequest): ResponseEntity<ApiResponse<GroupSeatingResponseDTO>>
+        + getGlobalRecommendations(request: GroupSeatingRequest): ResponseEntity<ApiResponse<GroupSeatingResponseDTO>>
+    }
+
+    class BookingController {
+        - bookingService: BookingService
+        + createBooking(request: BookingCreateRequest, userDetails: UserDetails): ResponseEntity<ApiResponse<BookingDTO>>
+    }
+}
+
+package "DTOs & Transfer Models" {
+    class GroupSeatingRequest {
+        - showId: Long
+        - partySize: Integer
+        - preferredTier: SeatTier
+        - preferredRow: String
+        - allowSplitRows: Boolean
+        - requireAccessibility: Boolean
+        - maxSplits: Integer
+        + getPartySize(): Integer
+        + getPreferredTier(): SeatTier
+    }
+
+    class GroupSeatingResponseDTO {
+        - showId: Long
+        - movieTitle: String
+        - screenName: String
+        - cinemaName: String
+        - partySize: int
+        - candidateCount: int
+        - message: String
+        - recommendations: List<GroupSeatingRecommendationDTO>
+    }
+
+    class GroupSeatingRecommendationDTO {
+        - rank: int
+        - arrangementType: String
+        - score: double
+        - description: String
+        - explanation: String
+        - totalPrice: BigDecimal
+        - seats: List<ShowSeatDTO>
+        + fromScoredArrangement(rank: int, arr: ScoredArrangement): GroupSeatingRecommendationDTO
+    }
+}
+
+package "Core Domain & Scoring Models" {
+    enum ArrangementType {
+        CONTIGUOUS_ROW
+        ADJACENT_SPLIT_ROW
+        ACCESSIBLE_CLUSTER
+    }
+
+    class ScoredArrangement {
+        - seats: List<ShowSeat>
+        - score: double
+        - arrangementType: ArrangementType
+        - description: String
+        - explanation: String
+        - clusterCount: int
+        - centerDeviation: double
+        - rowDeviation: double
+        - tierPenalty: double
+        - splitPenalty: double
+        - misalignmentPenalty: double
+        + getScore(): double
+        + getClusterCount(): int
+        + getRowDistance(): double
+        + getMinRow(): String
+        + getMinCol(): int
+        + getTotalPrice(): BigDecimal
+    }
+}
+
+package "Service Layer" {
+    class GroupSeatingService {
+        - showRepository: ShowRepository
+        - showSeatRepository: ShowSeatRepository
+        - seatScoringService: SeatScoringService
+        - contiguousStrategy: ContiguousSeatAllocationStrategy
+        - flexibleStrategy: FlexibleSeatAllocationStrategy
+        - accessibleStrategy: AccessibleSeatAllocationStrategy
+        + getRecommendations(request: GroupSeatingRequest): GroupSeatingResponseDTO
+    }
+
+    class SeatScoringService {
+        + {static} WEIGHT_CENTER: double = 0.35
+        + {static} WEIGHT_ROW: double = 0.25
+        + {static} WEIGHT_MISALIGNMENT: double = 3.0
+        + {static} PENALTY_TIER_ADJACENT: double = 15.0
+        + {static} PENALTY_TIER_DISCORDANT: double = 40.0
+        + {static} PENALTY_SPLIT_ADJACENT: double = 25.0
+        + {static} PENALTY_SPLIT_DISJOINT: double = 50.0
+        + scoreArrangement(seats, type, req, totalRows, totalCols, clusters, misalign): ScoredArrangement
+        + getDeterministicComparator(): Comparator<ScoredArrangement>
+    }
+
+    class BookingService {
+        - bookingRepository: BookingRepository
+        - showSeatRepository: ShowSeatRepository
+        + createBooking(userEmail: String, request: BookingCreateRequest): BookingDTO
+    }
+}
+
+package "Strategy Pattern (Allocation)" {
+    interface SeatAllocationStrategy {
+        + allocate(availableSeats: List<ShowSeat>, request: GroupSeatingRequest, totalRows: int, totalCols: int): List<ScoredArrangement>
+        + supports(request: GroupSeatingRequest): boolean
+    }
+
+    class ContiguousSeatAllocationStrategy implements SeatAllocationStrategy {
+        - seatScoringService: SeatScoringService
+        + allocate(...): List<ScoredArrangement>
+    }
+
+    class FlexibleSeatAllocationStrategy implements SeatAllocationStrategy {
+        - seatScoringService: SeatScoringService
+        + allocate(...): List<ScoredArrangement>
+    }
+
+    class AccessibleSeatAllocationStrategy implements SeatAllocationStrategy {
+        - seatScoringService: SeatScoringService
+        + allocate(...): List<ScoredArrangement>
+    }
+}
+
+package "Persistence & Entities" {
+    class ShowSeat {
+        - id: Long
+        - show: Show
+        - seat: Seat
+        - status: ShowSeatStatus
+        - price: BigDecimal
+        - version: Long
+        + hold(): void
+        + book(): void
+        + release(): void
+    }
+
+    class Seat {
+        - id: Long
+        - rowIdentifier: String
+        - columnNumber: int
+        - seatTier: SeatTier
+        - gridX: int
+        - gridY: int
+        - isActive: boolean
+        + isAccessible(): boolean
+    }
+}
+
+GroupSeatingController --> GroupSeatingService
+GroupSeatingController ..> GroupSeatingRequest
+GroupSeatingController ..> GroupSeatingResponseDTO
+
+GroupSeatingService --> SeatScoringService
+GroupSeatingService --> ContiguousSeatAllocationStrategy
+GroupSeatingService --> FlexibleSeatAllocationStrategy
+GroupSeatingService --> AccessibleSeatAllocationStrategy
+
+ContiguousSeatAllocationStrategy --> SeatScoringService
+FlexibleSeatAllocationStrategy --> SeatScoringService
+AccessibleSeatAllocationStrategy --> SeatScoringService
+
+ContiguousSeatAllocationStrategy ..> ScoredArrangement
+FlexibleSeatAllocationStrategy ..> ScoredArrangement
+AccessibleSeatAllocationStrategy ..> ScoredArrangement
+ScoredArrangement --> ArrangementType
+ScoredArrangement *-- ShowSeat
+ShowSeat *-- Seat
+
+BookingController --> BookingService
+BookingService ..> ShowSeat
+
+@enduml

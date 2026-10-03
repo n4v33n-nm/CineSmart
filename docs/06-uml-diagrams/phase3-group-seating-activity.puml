@@ -1,0 +1,88 @@
+@startuml
+title CineSmart — Activity Diagram: Smart Group Seating Allocation Workflow
+
+skinparam monochrome false
+skinparam roundcorner 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+start
+
+:Receive Group Seating Request\n(partySize, preferredTier, preferredRow, allowSplitRows, requireAccessibility);
+
+if (1 <= partySize <= 10?) then (yes)
+else (no)
+    :Throw BadRequestException("INVALID_GROUP_SIZE");
+    stop
+endif
+
+:Retrieve show details and show_seats inventory from database;
+
+if (Total AVAILABLE seats >= partySize?) then (yes)
+else (no)
+    :Return GroupSeatingResponseDTO with 0 candidates\n("Party size exceeds available capacity");
+    stop
+endif
+
+if (requireAccessibility == true?) then (yes)
+    :Execute AccessibleSeatAllocationStrategy;
+    :Locate Row A wheelchair space (ACCESSIBLE_WHEELCHAIR)\nand adjacent companion seats (ACCESSIBLE_COMPANION);
+    :Score accessible cluster arrangements;
+else (no)
+    :Execute ContiguousSeatAllocationStrategy;
+    :Group available seats by rowIdentifier;
+    :Sort each row by columnNumber ascending;
+    :Run sliding window scan of exact width N;
+    
+    while (More rows or window positions?) is (yes)
+        if (Window seats are strictly consecutive columns\nand all status == AVAILABLE?) then (yes)
+            :Calculate Center Deviation (P_center);
+            :Calculate Row Depth Deviation (P_row);
+            :Calculate Tier Concordance (P_tier);
+            :Compute Final Match Score = max(0, 100 - sum(P));
+            :Add to candidate list (Type: CONTIGUOUS_ROW);
+        else (no)
+            :Skip invalid or fragmented window;
+        endif
+    endwhile (done)
+
+    if (Contiguous candidates < 3 AND allowSplitRows == true?) then (yes)
+        :Execute FlexibleSeatAllocationStrategy;
+        :Partition N into sub-clusters (e.g. n1 + n2 = N);
+        :Iterate adjacent row pairs (r, r+1);
+        :Find contiguous sub-blocks of size n1 and n2;
+        
+        while (More sub-block combinations?) is (yes)
+            if (Column offset difference <= 3.5?) then (yes)
+                :Calculate split penalty (P_split = 25.0);
+                :Calculate misalignment penalty (P_misalign = 3.0 * offset);
+                :Compute composite score;
+                :Add to candidate list (Type: ADJACENT_SPLIT_ROW);
+            else (no)
+                :Reject candidate (excessive column misalignment);
+            endif
+        endwhile (done)
+    endif
+endif
+
+if (Candidates list is empty?) then (yes)
+    :Return response ("No suitable group arrangement found");
+    stop
+else (no)
+    :Sort candidates using Deterministic Comparator:
+    1. Score DESC (higher is better)
+    2. Cluster Count ASC (K=1 beats K=2)
+    3. Distance to Optimal Row ASC
+    4. Alphabetical Row Identifier ASC
+    5. Starting Column Number ASC;
+
+    :Deduplicate identical seat sets;
+    :Take top 3 scored arrangements;
+    :Format GroupSeatingRecommendationDTOs with match scores & layout explanations;
+    :Return HTTP 200 OK with GroupSeatingResponseDTO;
+endif
+
+stop
+
+@enduml

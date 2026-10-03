@@ -1,0 +1,103 @@
+@startuml
+title CineSmart — Sequence Diagram: Recommendation & Atomic Reservation Separation
+
+autonumber
+skinparam monochrome false
+skinparam roundcorner 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+actor "Customer / Group Organizer" as User
+participant "React Frontend\n(SeatSelectionPage)" as UI
+participant "GroupSeatingController" as RecController
+participant "GroupSeatingService" as RecService
+participant "SeatAllocationStrategy" as Strategy
+participant "SeatScoringService" as Scorer
+participant "BookingController" as BookController
+participant "BookingService" as BookService
+participant "ShowSeatRepository" as SeatRepo
+database "PostgreSQL Database" as DB
+
+== Phase 3A: Recommendation Operation (Advisory, Non-Blocking) ==
+
+User -> UI : Select Party Size (N=4), Preferred Tier (PREMIUM), "Find Best Seats"
+activate UI
+
+UI -> RecController : POST /api/shows/101/group-seating/recommendations\n{partySize: 4, preferredTier: "PREMIUM", allowSplitRows: true}
+activate RecController
+
+RecController -> RecService : getRecommendations(request)
+activate RecService
+
+RecService -> SeatRepo : findByShowId(101)
+activate SeatRepo
+SeatRepo -> DB : SELECT * FROM show_seats WHERE show_id = 101
+activate DB
+DB --> SeatRepo : List<ShowSeat> (Inventory)
+deactivate DB
+SeatRepo --> RecService : List<ShowSeat>
+deactivate SeatRepo
+
+RecService -> Strategy : allocate(availableSeats, request, totalRows, totalCols)
+activate Strategy
+Strategy -> Scorer : scoreArrangement(windowSeats, CONTIGUOUS_ROW, ...)
+activate Scorer
+Scorer --> Strategy : ScoredArrangement(Score=96.5, rank=1)
+deactivate Scorer
+Strategy --> RecService : List<ScoredArrangement>
+deactivate Strategy
+
+RecService -> Scorer : getDeterministicComparator()
+RecService -> RecService : Sort & Take Top 3 Distinct Candidates
+RecService --> RecController : GroupSeatingResponseDTO
+deactivate RecService
+
+RecController --> UI : HTTP 200 OK (Top 3 Recommendations with Layout & Badges)
+deactivate RecController
+
+UI -> User : Render cards: Option #1 (96% Match, Row E 5-8)\nHighlights seats on SeatMap
+deactivate UI
+
+== Phase 3B: Customer Selection & Manual Verification ==
+
+User -> UI : Reviews highlighted seats, clicks "Confirm Booking"
+activate UI
+
+== Phase 3C: Reservation Operation (Atomic Transaction & Concurrency Locking) ==
+
+UI -> BookController : POST /api/bookings\n{showId: 101, showSeatIds: [1205, 1206, 1207, 1208]}
+activate BookController
+
+BookController -> BookService : createBooking(userEmail, request)
+activate BookService
+
+BookService -> BookService : Validate non-empty, non-duplicate, within size limit
+BookService -> SeatRepo : findAllByIdWithLock([1205, 1206, 1207, 1208])
+activate SeatRepo
+SeatRepo -> DB : SELECT * FROM show_seats WHERE id IN (...) FOR UPDATE
+activate DB
+note right of DB: Pessimistic write lock acquired.\nConcurrent transactions block.
+DB --> SeatRepo : List<ShowSeat> (Locked entities)
+deactivate DB
+SeatRepo --> BookService : List<ShowSeat>
+deactivate SeatRepo
+
+BookService -> BookService : Validate status == AVAILABLE for all seats
+BookService -> BookService : Transition status -> BOOKED for all seats
+BookService -> SeatRepo : saveAll(selectedSeats)
+BookService -> DB : INSERT INTO bookings, booking_seats
+activate DB
+DB --> BookService : Saved Booking Entity
+deactivate DB
+
+BookService --> BookController : BookingDTO (CONFIRMED)
+deactivate BookService
+
+BookController --> UI : HTTP 201 Created (Booking Reference CS-2026-XXXX)
+deactivate BookController
+
+UI -> User : Display "Booking Confirmed!" Success Dialog with Ticket Details
+deactivate UI
+
+@enduml

@@ -6,9 +6,9 @@
 [![Vite](https://img.shields.io/badge/Vite-5.4-purple.svg)](https://vitejs.dev/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-blue.svg)](https://www.postgresql.org/)
 [![OOAD](https://img.shields.io/badge/Architecture-OOAD%20%26%20Design%20Patterns-purple.svg)]()
-[![Tests](https://img.shields.io/badge/JUnit%205-15%20Passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/JUnit%205-42%20Passing-brightgreen.svg)]()
 
-> **Phase 2 Complete:** Full-Stack Project Foundation and Core Infrastructure. Cleanly separates physical inventory, screening inventory, and transactional snapshots. Fully runnable and tested with Spring Boot, React, and PostgreSQL.
+> **Phase 3 Complete:** Smart Group Seating and Intelligent Seat Allocation. Implemented interchangeable allocation strategies (Contiguous, Flexible Split-Row, Accessibility Gate), mathematical multi-factor scoring with deterministic tie-breaking, separation of recommendation from reservation, atomic pessimistic locking, and interactive React UI assistant. 42 passing tests. Fully runnable and verified.
 
 ---
 
@@ -272,8 +272,11 @@ All responses use the uniform envelope:
 * `GET /api/cinemas` — List cinemas and locations
 * `GET /api/cinemas/{id}/screens` — List auditoriums belonging to a cinema
 
-### Seats
+### Seats & Smart Group Seating
 * `GET /api/shows/{showId}/seats` — Get live interactive seat map layout for a screening with `ShowSeat` availability states and tier pricing
+* `POST /api/shows/{showId}/group-seating/recommendations` — Request intelligent group seating recommendations (partySize, preferredTier, preferredRow, allowSplitRows, requireAccessibility)
+* `POST /api/shows/{showId}/recommendations` — Compatible alias endpoint for group seating recommendations
+* `POST /api/recommendations/group-seats` — Global endpoint matching Phase 1 API specifications
 
 ### Bookings
 * `POST /api/bookings` — Create a new ticket booking (`showId`, `showSeatIds`) with pessimistic concurrency locking
@@ -299,22 +302,23 @@ mvn test
 ```
 
 **Results:**
-* **Tests executed:** 15 passing tests across 8 test classes
+* **Tests executed:** 42 passing tests across 14 test classes
 * **Failures:** 0
 * **Errors:** 0
 * **Coverage:**
-  * Domain Entity constraints (`UserTest`, `ShowSeatTest`, `BookingTest`)
-  * Repositories with JPA queries (`MovieRepositoryTest`, `ShowSeatRepositoryTest`)
-  * Service layer logic (`MovieServiceTest`, `BookingServiceTest` with double-booking prevention)
-  * REST API endpoints (`HealthControllerTest`)
+  * **Phase 1 & 2 Foundations:** Domain Entity constraints (`UserTest`, `ShowSeatTest`, `BookingTest`), JPA Repositories (`MovieRepositoryTest`, `ShowSeatRepositoryTest`), Services (`MovieServiceTest`, `BookingServiceTest`), REST APIs (`HealthControllerTest`).
+  * **Phase 3 Algorithmic Strategies:** Single-row sliding window (`ContiguousSeatAllocationStrategyTest`), multi-row vertical split allocation (`FlexibleSeatAllocationStrategyTest`), accessibility hard gates (`GroupSeatingServiceTest`).
+  * **Phase 3 Preference Scoring & Determinism:** Center screen viewing angle, row depth sweet spots, tier concordance, split misalignment penalties, strict deterministic tie-breakers (`SeatScoringServiceTest`).
+  * **Phase 3 Transactional & Concurrency Integrity:** Duplicate/invalid seat ID rejection, cross-show mismatches, atomic all-or-nothing rollback (`BookingValidationTest`), multi-threaded race condition double-booking prevention (`ConcurrencyBookingIntegrationTest`).
+  * **Phase 3 REST Contracts:** Request validation and response DTO schemas (`GroupSeatingIntegrationTest`).
 
 ### Frontend Build Validation
 ```bash
 cd frontend
-npm run build
+cmd /c "npm run build"
 ```
 **Results:**
-* Production bundle compiled in `dist/` with 0 errors.
+* Production bundle compiled in `dist/` with 0 errors (1599 modules transformed, Vite build verified).
 
 ---
 
@@ -325,6 +329,8 @@ npm run build
 3. **Repository Pattern:** Spring Data repositories abstract database access and queries without raw SQL leaks in business logic.
 4. **Pessimistic Concurrency Locking:** `ShowSeatRepository.findAllByIdWithLock()` issues `SELECT ... FOR UPDATE` ensuring safe seat locking during booking creation.
 5. **Data Transfer Object (DTO) Pattern:** Prevents over-posting, protects sensitive database fields (`password_hash`), and avoids Hibernate lazy-loading serialization issues.
+6. **Strategy Pattern (Phase 3):** Interchangeable seat allocation algorithms implementing `SeatAllocationStrategy` (`ContiguousSeatAllocationStrategy`, `FlexibleSeatAllocationStrategy`, `AccessibleSeatAllocationStrategy`), dynamically orchestrated by `GroupSeatingService`.
+7. **Single Responsibility Principle (SRP):** Complete separation between read-only advisory seat recommendation (`GroupSeatingService`) and transactional, atomic reservation (`BookingService`).
 
 ---
 
@@ -334,8 +340,14 @@ npm run build
   * Use Cases, Functional Requirements, Database Schema, 10 PlantUML diagrams.
 * [x] **Phase 2: Full-Stack Project Foundation and Core Infrastructure**
   * Spring Boot 3 + React 18 + PostgreSQL infrastructure, JWT auth, interactive seat map, order creation, admin CRUD, automated test suite.
-* [ ] **Phase 3: Algorithmic Engines & Advanced Workflows** *(Intentionally Postponed to Next Phase)*
-  * Smart Group Seating & Adjacency Allocation Algorithm
-  * Seat recommendation scoring & alternative arrangements
-  * Booking Recovery Engine & gateway timeout reconciliation worker
-  * Fair Seat Release FIFO Waitlist & 10-minute claim token dispatcher
+* [x] **Phase 3: Smart Group Seating and Intelligent Seat Allocation**
+  * Contiguous single-row sliding window algorithm ($\mathcal{O}(R \cdot C)$).
+  * Flexible adjacent-split fallback algorithm ($K=2$) with vertical column alignment.
+  * Certified accessibility hard constraints (wheelchair bay + companion pairs).
+  * Mathematical multi-factor penalty scoring formula with documented weights.
+  * 5-rule strict deterministic tie-breaker comparator.
+  * Separation of recommendation (advisory) from reservation (atomic pessimistic locking).
+  * REST API endpoints (`/api/shows/{showId}/group-seating/recommendations`).
+  * Interactive React frontend widget (`SmartGroupSeating.jsx`) with real-time map preview.
+  * Comprehensive test suite: 42 automated unit and integration tests passing.
+  * Updated UML diagrams (`phase3-group-seating-class-diagram.puml`, `phase3-group-seating-sequence.puml`, `phase3-group-seating-activity.puml`).

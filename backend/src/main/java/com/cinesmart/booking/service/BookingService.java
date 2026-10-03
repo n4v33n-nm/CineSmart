@@ -81,6 +81,21 @@ public class BookingService {
             throw new BadRequestException("At least one seat must be selected", "NO_SEATS_SELECTED");
         }
 
+        // Validate individual seat IDs for validity
+        if (request.getShowSeatIds().stream().anyMatch(id -> id == null || id <= 0)) {
+            throw new BadRequestException("Invalid seat identifier provided", "INVALID_SEAT_IDS");
+        }
+
+        // Check for duplicate seat IDs in the request
+        java.util.Set<Long> uniqueIds = new java.util.HashSet<>(request.getShowSeatIds());
+        if (uniqueIds.size() != request.getShowSeatIds().size()) {
+            throw new BadRequestException("Duplicate seat selections are not allowed", "DUPLICATE_SEAT_IDS");
+        }
+
+        if (request.getShowSeatIds().size() > com.cinesmart.seat.group.dto.GroupSeatingRequest.MAX_GROUP_SIZE) {
+            throw new BadRequestException("Cannot book more than " + com.cinesmart.seat.group.dto.GroupSeatingRequest.MAX_GROUP_SIZE + " seats per booking", "GROUP_SIZE_EXCEEDS_LIMIT");
+        }
+
         // Concurrency-safe: Acquire pessimistic write lock on target seats
         List<ShowSeat> selectedSeats = showSeatRepository.findAllByIdWithLock(request.getShowSeatIds());
 

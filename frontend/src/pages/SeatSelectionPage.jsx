@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { SeatMap } from '../components/SeatMap';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
+import { SmartGroupSeating } from '../components/SmartGroupSeating';
 import {
   Film,
   Calendar,
@@ -71,6 +72,18 @@ export function SeatSelectionPage() {
       }
       return [...prev, seat];
     });
+  };
+
+  const handleApplyRecommendation = (recSeats) => {
+    if (!seatMapData || !seatMapData.seats) {
+      setSelectedSeats(recSeats);
+      return;
+    }
+    const matched = recSeats.map((rec) => {
+      const fresh = seatMapData.seats.find((s) => s.showSeatId === rec.showSeatId);
+      return fresh || rec;
+    });
+    setSelectedSeats(matched);
   };
 
   const handleConfirmBooking = async () => {
@@ -189,6 +202,14 @@ export function SeatSelectionPage() {
           <ErrorMessage message={error} />
         </div>
       )}
+
+      {/* Smart Group Seating Assistant (Phase 3) */}
+      <SmartGroupSeating
+        showId={showId}
+        availableSeatsCount={seatMapData?.availableSeats || 0}
+        onApplyRecommendation={handleApplyRecommendation}
+        currentSelectedSeats={selectedSeats}
+      />
 
       {/* Main Layout: Seat Map on Left/Center, Booking Summary on Right */}
       <div style={{

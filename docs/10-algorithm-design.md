@@ -312,3 +312,41 @@ Row H:   [ 1][ 2][ 3][ 4][ 5][ 6]  [AISLE]  [ 7][ 8][ 9][10][11][12]
   4. *Tie-Breaker 4 (Left-to-Right starting column):* Option 1 starts at Column 3; Option 2 starts at Column 8.
   * **Decision:** Option 1 (Seats 3, 4, 5) deterministically wins Rank 1; Option 2 (Seats 8, 9, 10) takes Rank 2.
   * **Result:** Guaranteed reproducible ordering with zero non-deterministic jitter between server restarts.
+
+---
+
+## 7. Phase 3 Implementation & Verification
+
+### 7.1 Implemented Component Architecture
+* **Strategy Pattern Interface:** `com.cinesmart.seat.group.strategy.SeatAllocationStrategy`
+* **Contiguous Single-Row Strategy:** `ContiguousSeatAllocationStrategy` (sliding window of width $N$, $\mathcal{O}(R \cdot C)$)
+* **Flexible Split-Row Fallback:** `FlexibleSeatAllocationStrategy` (sub-cluster partition across adjacent rows with column offset threshold $\le 3.5$)
+* **Accessibility Gate Strategy:** `AccessibleSeatAllocationStrategy` (certified wheelchair and companion pairs)
+* **Mathematical Scoring Service:** `SeatScoringService` with configurable penalty constants:
+  * $W_{\text{center}} = 0.35$
+  * $W_{\text{row}} = 0.25$
+  * $W_{\text{misalign}} = 3.0$
+  * $P_{\text{tier, adjacent}} = 15.0$, $P_{\text{tier, discordant}} = 40.0$
+  * $P_{\text{split, adjacent}} = 25.0$, $P_{\text{split, disjoint}} = 50.0$
+* **Deterministic Tie-Breaker Comparator:**
+  1. Match score $\text{DESC}$
+  2. Cluster count $\text{ASC}$ ($K=1$ strictly beats $K=2$)
+  3. Distance to optimal sweet spot row $Y_{\text{opt}} \text{ ASC}$
+  4. Alphabetical minimum row identifier $\text{ASC}$
+  5. Lower starting column number $\text{ASC}$
+* **Orchestration Service:** `GroupSeatingService`
+* **REST Controller Endpoints:**
+  * `POST /api/shows/{showId}/group-seating/recommendations` (Primary)
+  * `POST /api/shows/{showId}/recommendations` (Alias)
+  * `POST /api/recommendations/group-seats` (Phase 1 spec alias)
+* **Frontend Integration:** `SmartGroupSeating.jsx` embedded into `SeatSelectionPage.jsx` with instant interactive layout preview and selection.
+
+### 7.2 Automated Test Coverage Matrix
+The Phase 3 test suite includes 42 automated tests across unit and integration suites with 100% passing results:
+1. `ContiguousSeatAllocationStrategyTest`: 4 consecutive seats, 2 consecutive seats, aisle gap rejection, occupied seat skipping, all seats booked.
+2. `FlexibleSeatAllocationStrategyTest`: 2+2 split across adjacent rows, 3+2 split, non-adjacent row rejection, extreme column offset rejection.
+3. `SeatScoringServiceTest`: Perfect center sweet spot score, preferred tier influence, tie-breaker 1 (cluster count), tie-breaker 2 (left vs right column index), tie-breaker 3 (alphabetical row).
+4. `GroupSeatingServiceTest`: Invalid group sizes ($\le 0$ or $> 10$), capacity exceeded responses, read-only recommendation isolation, wheelchair hard gates, nonexistent shows.
+5. `BookingValidationTest`: Duplicate seat IDs rejected, non-positive IDs rejected, cross-show mismatch, atomic all-or-nothing rollback.
+6. `GroupSeatingIntegrationTest`: MockMvc verification of REST contracts, 200 OK responses, 400 Bad Request on invalid parameters.
+7. `ConcurrencyBookingIntegrationTest`: Multi-threaded race condition tests proving pessimistic locking prevents double booking.
