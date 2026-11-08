@@ -3,7 +3,7 @@ import React from 'react';
 export function Seat({ seat, isSelected, onToggle }) {
   const isAvailable = seat.status === 'AVAILABLE';
   const isBooked = seat.status === 'BOOKED';
-  const isHeld = seat.status === 'HELD';
+  const isLockedOrHeld = seat.status === 'LOCKED' || seat.status === 'HELD';
   const isAccessible = seat.accessible;
 
   let bgColor = 'var(--seat-available)';
@@ -20,7 +20,7 @@ export function Seat({ seat, isSelected, onToggle }) {
     borderColor = 'transparent';
     textColor = '#64748b';
     cursor = 'not-allowed';
-  } else if (isHeld) {
+  } else if (isLockedOrHeld) {
     bgColor = 'rgba(245, 158, 11, 0.25)';
     borderColor = 'var(--accent-gold)';
     textColor = 'var(--accent-gold)';
@@ -36,7 +36,13 @@ export function Seat({ seat, isSelected, onToggle }) {
     borderColor = 'var(--seat-accessible)';
   }
 
-  const ariaLabel = `${seat.label} — ${isSelected ? 'Selected' : seat.status}, Tier: ${seat.tier}, Price: $${Number(seat.price).toFixed(2)}`;
+  const statusLabel = isSelected
+    ? 'Selected'
+    : isLockedOrHeld
+    ? 'Temporarily Locked'
+    : seat.status;
+
+  const ariaLabel = `${seat.label} — ${statusLabel}, Tier: ${seat.tier}, Price: ₹${Number(seat.price).toFixed(2)}`;
 
   return (
     <button

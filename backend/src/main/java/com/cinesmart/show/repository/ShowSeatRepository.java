@@ -25,6 +25,10 @@ public interface ShowSeatRepository extends JpaRepository<ShowSeat, Long> {
 
     long countByShowIdAndStatus(Long showId, ShowSeatStatus status);
 
+    List<ShowSeat> findByStatusInAndLockedUntilBefore(List<ShowSeatStatus> statuses, java.time.LocalDateTime time);
+
+    List<ShowSeat> findByShowIdAndStatusInAndLockedUntilBefore(Long showId, List<ShowSeatStatus> statuses, java.time.LocalDateTime time);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT ss FROM ShowSeat ss WHERE ss.id IN :ids")
     List<ShowSeat> findAllByIdWithLock(@Param("ids") List<Long> ids);

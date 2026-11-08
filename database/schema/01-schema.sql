@@ -109,13 +109,16 @@ CREATE TABLE show_seats (
     seat_id BIGINT NOT NULL REFERENCES seats(id) ON DELETE RESTRICT,
     status VARCHAR(30) NOT NULL DEFAULT 'AVAILABLE',
     price NUMERIC(10, 2) NOT NULL,
+    locked_until TIMESTAMP WITH TIME ZONE,
+    locked_by_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
     version BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT uq_show_seat UNIQUE (show_id, seat_id),
     CONSTRAINT chk_show_seat_price CHECK (price >= 0),
-    CONSTRAINT chk_show_seat_status CHECK (status IN ('AVAILABLE', 'HELD', 'BOOKED', 'BLOCKED', 'WAITLIST_OFFERED'))
+    CONSTRAINT chk_show_seat_status CHECK (status IN ('AVAILABLE', 'LOCKED', 'HELD', 'BOOKED', 'BLOCKED', 'WAITLIST_OFFERED'))
 );
 
 CREATE INDEX idx_show_seats_lookup ON show_seats(show_id, status);
+CREATE INDEX idx_show_seats_lock_lookup ON show_seats(status, locked_until);
 
 -- 8. SeatHolds Table
 CREATE TABLE seat_holds (
@@ -143,10 +146,11 @@ CREATE TABLE bookings (
     show_id BIGINT NOT NULL REFERENCES shows(id) ON DELETE RESTRICT,
     total_amount NUMERIC(10, 2) NOT NULL,
     status VARCHAR(30) NOT NULL DEFAULT 'PENDING_PAYMENT',
+    expires_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     confirmed_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT chk_booking_amount CHECK (total_amount >= 0),
-    CONSTRAINT chk_booking_status CHECK (status IN ('PENDING_PAYMENT', 'PAYMENT_PENDING_VERIFICATION', 'CONFIRMED', 'CANCELLED', 'CANCELLED_BY_CINEMA', 'EXPIRED'))
+    CONSTRAINT chk_booking_status CHECK (status IN ('PENDING_PAYMENT', 'PAYMENT_PENDING_VERIFICATION', 'CONFIRMED', 'PAYMENT_FAILED', 'CANCELLED', 'CANCELLED_BY_CINEMA', 'EXPIRED', 'REFUNDED'))
 );
 
 CREATE INDEX idx_bookings_user ON bookings(user_id);
@@ -163,25 +167,32 @@ CREATE TABLE booking_seats (
     CONSTRAINT chk_snapshot_price CHECK (snapshot_price >= 0)
 );
 
--- 11. Payments Table
-CREATE TABLE payments (
+-- 11. Payment Transactions Table
+CREATE TABLE payment_transactions (
     id BIGSERIAL PRIMARY KEY,
+    transaction_reference VARCHAR(64) NOT NULL UNIQUE,
     booking_id BIGINT NOT NULL REFERENCES bookings(id) ON DELETE RESTRICT,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     idempotency_key VARCHAR(64) NOT NULL UNIQUE,
     gateway_txn_id VARCHAR(100),
     amount NUMERIC(10, 2) NOT NULL,
+    currency VARCHAR(10) NOT NULL DEFAULT 'INR',
     payment_method VARCHAR(30) NOT NULL,
-    status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+    status VARCHAR(30) NOT NULL DEFAULT 'INITIATED',
     failure_reason VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    reconciled_at TIMESTAMP WITH TIME ZONE,
-    CONSTRAINT chk_payment_amount CHECK (amount > 0),
-    CONSTRAINT chk_payment_status CHECK (status IN ('PENDING', 'SUCCESS', 'FAILED', 'PENDING_RECONCILIATION', 'REFUNDED'))
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_payment_amount CHECK (amount >= 0),
+    CONSTRAINT chk_payment_status CHECK (status IN ('INITIATED', 'PROCESSING', 'SUCCESS', 'FAILED', 'CANCELLED', 'REFUNDED'))
 );
+
+CREATE INDEX idx_payments_booking ON payment_transactions(booking_id);
+CREATE INDEX idx_payments_status ON payment_transactions(status);
 
 -- 12. Tickets Table
 CREATE TABLE tickets (
     id BIGSERIAL PRIMARY KEY,
+    booking_id BIGINT NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
     booking_seat_id BIGINT NOT NULL UNIQUE REFERENCES booking_seats(id) ON DELETE RESTRICT,
     ticket_code VARCHAR(32) NOT NULL UNIQUE,
     qr_verification_hash VARCHAR(255) NOT NULL,
@@ -189,5 +200,29 @@ CREATE TABLE tickets (
     issued_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     validated_at TIMESTAMP WITH TIME ZONE,
     validated_by BIGINT REFERENCES users(id),
-    CONSTRAINT chk_ticket_status CHECK (status IN ('ISSUED', 'USED', 'VOIDED'))
+    CONSTRAINT chk_ticket_status CHECK (status IN ('ISSUED', 'USED', 'VOIDED', 'CANCELLED'))
 );
+
+-- 13. Concurrency & Integrity Trigger on booking_seats
+CREATE OR REPLACE FUNCTION check_seat_not_already_booked() RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM booking_seats bs
+        JOIN bookings b ON bs.booking_id = b.id
+        WHERE bs.show_seat_id = NEW.show_seat_id
+          AND b.status IN ('CONFIRMED', 'PENDING_PAYMENT')
+          AND b.id <> NEW.booking_id
+    ) THEN
+        RAISE EXCEPTION 'Double booking error: show_seat % is already reserved in another active booking', NEW.show_seat_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_prevent_double_booking ON booking_seats;
+CREATE TRIGGER trg_prevent_double_booking
+BEFORE INSERT ON booking_seats
+FOR EACH ROW EXECUTE FUNCTION check_seat_not_already_booked();
+
+
+CREATE INDEX idx_tickets_booking ON tickets(booking_id);

@@ -45,4 +45,12 @@ public class BookingController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Booking created successfully", booking));
     }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<ApiResponse<BookingDTO>> cancelBooking(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        BookingDTO booking = bookingService.cancelBooking(id, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success("Booking cancelled successfully", booking));
+    }
 }

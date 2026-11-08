@@ -14,7 +14,7 @@ import {
   XCircle,
   CheckCircle,
   Clock,
-  DollarSign,
+  IndianRupee,
   Tv,
   MapPin
 } from 'lucide-react';
@@ -52,7 +52,7 @@ export function AdminDashboardPage() {
     movieId: '',
     screenId: '',
     startTime: '',
-    basePrice: 15.00
+    basePrice: 200.00
   });
 
   const loadAllData = async () => {
@@ -153,7 +153,7 @@ export function AdminDashboardPage() {
         movieId: '',
         screenId: '',
         startTime: '',
-        basePrice: 15.00
+        basePrice: 200.00
       });
       await loadAllData();
     } catch (err) {
@@ -373,7 +373,7 @@ export function AdminDashboardPage() {
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Screen {s.screenNumber} ({s.screenType})</div>
                       </td>
                       <td style={{ padding: '1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
-                        ${Number(s.basePrice).toFixed(2)}
+                        ₹{Number(s.basePrice).toFixed(2)}
                       </td>
                       <td style={{ padding: '1rem' }}>
                         <span className="badge badge-cyan">{s.availableSeatCount} available</span>
@@ -638,7 +638,7 @@ export function AdminDashboardPage() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>Base Ticket Price ($) *</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>Base Ticket Price (₹) *</label>
                 <input
                   type="number"
                   step="0.01"

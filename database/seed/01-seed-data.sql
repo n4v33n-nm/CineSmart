@@ -82,14 +82,14 @@ ON CONFLICT (screen_id, row_identifier, column_number) DO NOTHING;
 -- 6. Shows (Multiple Showtimes: 10:00 AM, 1:00 PM, 4:00 PM, 7:00 PM, 10:00 PM)
 INSERT INTO shows (id, movie_id, screen_id, start_time, end_time, base_price, status)
 VALUES 
-(1, 1, 1, CURRENT_DATE + TIME '10:00:00', CURRENT_DATE + TIME '12:49:00', 14.50, 'SCHEDULED'),
-(2, 1, 1, CURRENT_DATE + TIME '13:00:00', CURRENT_DATE + TIME '15:49:00', 16.50, 'SCHEDULED'),
-(3, 1, 1, CURRENT_DATE + TIME '19:00:00', CURRENT_DATE + TIME '21:49:00', 18.00, 'SCHEDULED'),
-(4, 2, 2, CURRENT_DATE + TIME '13:00:00', CURRENT_DATE + TIME '15:46:00', 15.00, 'SCHEDULED'),
-(5, 2, 2, CURRENT_DATE + TIME '16:00:00', CURRENT_DATE + TIME '18:46:00', 17.00, 'SCHEDULED'),
-(6, 3, 2, CURRENT_DATE + TIME '19:00:00', CURRENT_DATE + TIME '21:44:00', 18.00, 'SCHEDULED'),
-(7, 4, 1, CURRENT_DATE + TIME '22:00:00', CURRENT_DATE + TIME '00:22:00' + INTERVAL '1 day', 16.00, 'SCHEDULED'),
-(8, 5, 2, CURRENT_DATE + TIME '10:00:00', CURRENT_DATE + TIME '12:20:00', 12.50, 'SCHEDULED')
+(1, 1, 1, CURRENT_DATE + TIME '10:00:00', CURRENT_DATE + TIME '12:49:00', 180.00, 'SCHEDULED'),
+(2, 1, 1, CURRENT_DATE + TIME '13:00:00', CURRENT_DATE + TIME '15:49:00', 220.00, 'SCHEDULED'),
+(3, 1, 1, CURRENT_DATE + TIME '19:00:00', CURRENT_DATE + TIME '21:49:00', 250.00, 'SCHEDULED'),
+(4, 2, 2, CURRENT_DATE + TIME '13:00:00', CURRENT_DATE + TIME '15:46:00', 200.00, 'SCHEDULED'),
+(5, 2, 2, CURRENT_DATE + TIME '16:00:00', CURRENT_DATE + TIME '18:46:00', 240.00, 'SCHEDULED'),
+(6, 3, 2, CURRENT_DATE + TIME '19:00:00', CURRENT_DATE + TIME '21:44:00', 250.00, 'SCHEDULED'),
+(7, 4, 1, CURRENT_DATE + TIME '22:00:00', CURRENT_DATE + TIME '00:22:00' + INTERVAL '1 day', 220.00, 'SCHEDULED'),
+(8, 5, 2, CURRENT_DATE + TIME '10:00:00', CURRENT_DATE + TIME '12:20:00', 180.00, 'SCHEDULED')
 ON CONFLICT (id) DO UPDATE SET base_price = EXCLUDED.base_price;
 
 SELECT setval('shows_id_seq', 8);
@@ -102,8 +102,8 @@ SELECT
     'AVAILABLE' as status,
     CASE 
         WHEN s.seat_tier = 'STANDARD' THEN sh.base_price
-        WHEN s.seat_tier = 'PREMIUM' THEN sh.base_price + 3.00
-        WHEN s.seat_tier = 'RECLINER' THEN sh.base_price + 6.00
+        WHEN s.seat_tier = 'PREMIUM' THEN sh.base_price + 50.00
+        WHEN s.seat_tier = 'RECLINER' THEN sh.base_price + 100.00
         ELSE sh.base_price
     END as price,
     0 as version

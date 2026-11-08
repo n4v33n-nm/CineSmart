@@ -15,19 +15,25 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class SeatService {
 
     private final SeatRepository seatRepository;
     private final ShowRepository showRepository;
     private final ShowSeatRepository showSeatRepository;
+    private final SeatLockCleanupService seatLockCleanupService;
 
     public SeatService(SeatRepository seatRepository,
                        ShowRepository showRepository,
-                       ShowSeatRepository showSeatRepository) {
+                       ShowSeatRepository showSeatRepository,
+                       SeatLockCleanupService seatLockCleanupService) {
         this.seatRepository = seatRepository;
         this.showRepository = showRepository;
         this.showSeatRepository = showSeatRepository;
+        this.seatLockCleanupService = seatLockCleanupService;
     }
 
     public List<SeatDTO> getSeatsByScreen(Long screenId) {
@@ -36,7 +42,10 @@ public class SeatService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
     public SeatMapResponseDTO getSeatMapForShow(Long showId) {
+        seatLockCleanupService.releaseExpiredLocksForShow(showId);
+
         Show show = showRepository.findById(showId)
                 .orElseThrow(() -> new ResourceNotFoundException("Show", "id", showId));
 

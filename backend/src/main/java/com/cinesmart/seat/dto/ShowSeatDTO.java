@@ -19,6 +19,8 @@ public class ShowSeatDTO {
     private ShowSeatStatus status;
     private boolean accessible;
     private String label;
+    private java.time.LocalDateTime lockedUntil;
+    private Long lockedByUserId;
 
     public ShowSeatDTO() {
     }
@@ -39,7 +41,7 @@ public class ShowSeatDTO {
 
     public static ShowSeatDTO fromEntity(ShowSeat showSeat) {
         if (showSeat == null) return null;
-        return new ShowSeatDTO(
+        ShowSeatDTO dto = new ShowSeatDTO(
                 showSeat.getId(),
                 showSeat.getSeat() != null ? showSeat.getSeat().getId() : null,
                 showSeat.getSeat() != null ? showSeat.getSeat().getRowIdentifier() : "",
@@ -51,6 +53,11 @@ public class ShowSeatDTO {
                 showSeat.getStatus(),
                 showSeat.getSeat() != null && showSeat.getSeat().isAccessible()
         );
+        dto.setLockedUntil(showSeat.getLockedUntil());
+        if (showSeat.getLockedBy() != null) {
+            dto.setLockedByUserId(showSeat.getLockedBy().getId());
+        }
+        return dto;
     }
 
     public Long getShowSeatId() {
@@ -139,5 +146,21 @@ public class ShowSeatDTO {
 
     public void setLabel(String label) {
         this.label = label;
+    }
+
+    public java.time.LocalDateTime getLockedUntil() {
+        return lockedUntil;
+    }
+
+    public void setLockedUntil(java.time.LocalDateTime lockedUntil) {
+        this.lockedUntil = lockedUntil;
+    }
+
+    public Long getLockedByUserId() {
+        return lockedByUserId;
+    }
+
+    public void setLockedByUserId(Long lockedByUserId) {
+        this.lockedByUserId = lockedByUserId;
     }
 }

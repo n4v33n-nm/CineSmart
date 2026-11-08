@@ -6,19 +6,20 @@
 [![Vite](https://img.shields.io/badge/Vite-5.4-purple.svg)](https://vitejs.dev/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-blue.svg)](https://www.postgresql.org/)
 [![OOAD](https://img.shields.io/badge/Architecture-OOAD%20%26%20Design%20Patterns-purple.svg)]()
-[![Tests](https://img.shields.io/badge/JUnit%205-42%20Passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/JUnit%205-81%20Passing-brightgreen.svg)]()
 
-> **Phase 3 Complete:** Smart Group Seating and Intelligent Seat Allocation. Implemented interchangeable allocation strategies (Contiguous, Flexible Split-Row, Accessibility Gate), mathematical multi-factor scoring with deterministic tie-breaking, separation of recommendation from reservation, atomic pessimistic locking, and interactive React UI assistant. 42 passing tests. Fully runnable and verified.
+> **Phase 4 Complete:** Payment, Booking Confirmation & Transaction Management. Implemented Strategy-pattern simulated payment gateway (`MockPaymentGateway`), server-side amount calculation, atomic temporary seat holds during pending payment, controlled payment transaction state machine (`INITIATED` → `PROCESSING` → `SUCCESS`/`FAILED`, `REFUNDED`), digital ticket generation (`TKT-2026-XXXXXX` with SHA-256 QR verification hash), cancellation & automated refund workflow, and full React frontend checkout & ticket viewer integration. 81 passing tests (unit & end-to-end integration).
 
 ---
 
 ## 1. Project Overview
 
-**CineSmart** is a movie ticket reservation platform architected around **Object-Oriented Analysis and Design (OOAD)** principles and clean layered architecture. Built as a college capstone demonstration project, it models real-world cinema operations while preparing the infrastructure for three distinctive algorithmic engines:
+**CineSmart** is a movie ticket reservation platform architected around **Object-Oriented Analysis and Design (OOAD)** principles and clean layered architecture. Built as an advanced capstone demonstration project, it models real-world cinema operations through four comprehensive phases:
 
-1. **Smart Group Seating & Adjacency Coordination** (Phase 3)
-2. **Booking Recovery Engine & Automated Reconciliation** (Phase 3)
-3. **Fair Seat Release & FIFO Waitlist** (Phase 3)
+1. **Phase 1:** Core CineSmart system and layered OOAD foundation
+2. **Phase 2:** Movie/show/booking foundation and transactional seat inventory
+3. **Phase 3:** Smart Group Seating and Intelligent Seat Allocation
+4. **Phase 4:** Payment, Booking Confirmation & Transaction Management (Mock Gateway, Digital Tickets, Refund Lifecycle)
 
 ---
 

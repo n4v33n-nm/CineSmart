@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class ShowService {
 
     private final ShowRepository showRepository;
@@ -128,9 +129,9 @@ public class ShowService {
 
     private BigDecimal calculateSeatPrice(BigDecimal basePrice, SeatTier tier) {
         if (tier == SeatTier.PREMIUM) {
-            return basePrice.add(BigDecimal.valueOf(3.00));
+            return basePrice.add(BigDecimal.valueOf(50.00));
         } else if (tier == SeatTier.RECLINER) {
-            return basePrice.add(BigDecimal.valueOf(6.00));
+            return basePrice.add(BigDecimal.valueOf(100.00));
         }
         return basePrice;
     }

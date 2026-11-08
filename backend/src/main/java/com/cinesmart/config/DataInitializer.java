@@ -150,16 +150,16 @@ public class DataInitializer implements CommandLineRunner {
             LocalDate today = LocalDate.now();
             LocalDate tomorrow = today.plusDays(1);
 
-            createShowWithSeats(movie1, screen1, today.atTime(LocalTime.of(10, 0)), today.atTime(LocalTime.of(12, 49)), BigDecimal.valueOf(14.50), screen1Seats);
-            createShowWithSeats(movie1, screen1, today.atTime(LocalTime.of(13, 30)), today.atTime(LocalTime.of(16, 19)), BigDecimal.valueOf(16.50), screen1Seats);
-            createShowWithSeats(movie1, screen1, today.atTime(LocalTime.of(19, 0)), today.atTime(LocalTime.of(21, 49)), BigDecimal.valueOf(18.00), screen1Seats);
+            createShowWithSeats(movie1, screen1, today.atTime(LocalTime.of(10, 0)), today.atTime(LocalTime.of(12, 49)), BigDecimal.valueOf(180.00), screen1Seats);
+            createShowWithSeats(movie1, screen1, today.atTime(LocalTime.of(13, 30)), today.atTime(LocalTime.of(16, 19)), BigDecimal.valueOf(220.00), screen1Seats);
+            createShowWithSeats(movie1, screen1, today.atTime(LocalTime.of(19, 0)), today.atTime(LocalTime.of(21, 49)), BigDecimal.valueOf(250.00), screen1Seats);
 
-            createShowWithSeats(movie2, screen2, today.atTime(LocalTime.of(13, 0)), today.atTime(LocalTime.of(15, 46)), BigDecimal.valueOf(15.00), screen2Seats);
-            createShowWithSeats(movie2, screen2, today.atTime(LocalTime.of(16, 30)), today.atTime(LocalTime.of(19, 16)), BigDecimal.valueOf(17.00), screen2Seats);
+            createShowWithSeats(movie2, screen2, today.atTime(LocalTime.of(13, 0)), today.atTime(LocalTime.of(15, 46)), BigDecimal.valueOf(200.00), screen2Seats);
+            createShowWithSeats(movie2, screen2, today.atTime(LocalTime.of(16, 30)), today.atTime(LocalTime.of(19, 16)), BigDecimal.valueOf(240.00), screen2Seats);
 
-            createShowWithSeats(movie3, screen2, today.atTime(LocalTime.of(20, 0)), today.atTime(LocalTime.of(22, 44)), BigDecimal.valueOf(18.00), screen2Seats);
-            createShowWithSeats(movie4, screen1, tomorrow.atTime(LocalTime.of(21, 0)), tomorrow.atTime(LocalTime.of(23, 22)), BigDecimal.valueOf(16.00), screen1Seats);
-            createShowWithSeats(movie5, screen2, tomorrow.atTime(LocalTime.of(11, 0)), tomorrow.atTime(LocalTime.of(13, 20)), BigDecimal.valueOf(13.00), screen2Seats);
+            createShowWithSeats(movie3, screen2, today.atTime(LocalTime.of(20, 0)), today.atTime(LocalTime.of(22, 44)), BigDecimal.valueOf(250.00), screen2Seats);
+            createShowWithSeats(movie4, screen1, tomorrow.atTime(LocalTime.of(21, 0)), tomorrow.atTime(LocalTime.of(23, 22)), BigDecimal.valueOf(220.00), screen1Seats);
+            createShowWithSeats(movie5, screen2, tomorrow.atTime(LocalTime.of(11, 0)), tomorrow.atTime(LocalTime.of(13, 20)), BigDecimal.valueOf(180.00), screen2Seats);
 
             log.info("CineSmart initial development data loaded successfully.");
         }
@@ -200,9 +200,9 @@ public class DataInitializer implements CommandLineRunner {
         for (Seat seat : seats) {
             BigDecimal seatPrice = basePrice;
             if (seat.getSeatTier() == SeatTier.PREMIUM) {
-                seatPrice = basePrice.add(BigDecimal.valueOf(3.00));
+                seatPrice = basePrice.add(BigDecimal.valueOf(50.00));
             } else if (seat.getSeatTier() == SeatTier.RECLINER) {
-                seatPrice = basePrice.add(BigDecimal.valueOf(6.00));
+                seatPrice = basePrice.add(BigDecimal.valueOf(100.00));
             }
             showSeats.add(new ShowSeat(savedShow, seat, seatPrice));
         }

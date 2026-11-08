@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { seatService } from '../services/seatService';
 import {
   Users,
@@ -9,7 +9,7 @@ import {
   ChevronDown,
   ChevronUp,
   Info,
-  DollarSign
+  IndianRupee
 } from 'lucide-react';
 
 export function SmartGroupSeating({ showId, availableSeatsCount, onApplyRecommendation, currentSelectedSeats = [] }) {
@@ -62,6 +62,13 @@ export function SmartGroupSeating({ showId, availableSeatsCount, onApplyRecommen
       onApplyRecommendation(rec.seats);
     }
   };
+
+  useEffect(() => {
+    if (window.location.href.includes('groupOpen=true')) {
+      setIsOpen(true);
+      handleFindSeats();
+    }
+  }, []);
 
   return (
     <div className="glass-panel" style={{
@@ -392,7 +399,7 @@ export function SmartGroupSeating({ showId, availableSeatsCount, onApplyRecommen
                         <div>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Total ({rec.seats?.length} Tickets)</span>
                           <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--accent-gold)' }}>
-                            ${Number(rec.totalPrice).toFixed(2)}
+                            ₹{Number(rec.totalPrice).toFixed(2)}
                           </span>
                         </div>
 

@@ -77,7 +77,7 @@ class BookingServiceTest {
     }
 
     @Test
-    @DisplayName("Should successfully create booking and transition seats to BOOKED")
+    @DisplayName("Should successfully create booking and transition seats to HELD in PENDING_PAYMENT")
     void testCreateBookingSuccess() {
         BookingCreateRequest request = new BookingCreateRequest(101L, Arrays.asList(1201L, 1202L));
 
@@ -93,10 +93,10 @@ class BookingServiceTest {
         BookingDTO bookingDTO = bookingService.createBooking("customer@test.com", request);
 
         assertNotNull(bookingDTO);
-        assertEquals(BookingStatus.CONFIRMED, bookingDTO.getStatus());
+        assertEquals(BookingStatus.PENDING_PAYMENT, bookingDTO.getStatus());
         assertEquals(BigDecimal.valueOf(30.00), bookingDTO.getTotalAmount());
-        assertEquals(ShowSeatStatus.BOOKED, seat1.getStatus());
-        assertEquals(ShowSeatStatus.BOOKED, seat2.getStatus());
+        assertEquals(ShowSeatStatus.LOCKED, seat1.getStatus());
+        assertEquals(ShowSeatStatus.LOCKED, seat2.getStatus());
 
         verify(showSeatRepository, times(1)).saveAll(Arrays.asList(seat1, seat2));
         verify(bookingRepository, times(1)).save(any(Booking.class));

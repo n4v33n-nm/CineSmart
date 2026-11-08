@@ -1,16 +1,19 @@
 package com.cinesmart.show.entity;
 
 import com.cinesmart.seat.entity.Seat;
+import com.cinesmart.user.entity.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "show_seats", uniqueConstraints = {
     @UniqueConstraint(name = "uq_show_seat", columnNames = {"show_id", "seat_id"})
 }, indexes = {
-    @Index(name = "idx_show_seats_lookup", columnList = "show_id, status")
+    @Index(name = "idx_show_seats_lookup", columnList = "show_id, status"),
+    @Index(name = "idx_show_seats_lock_lookup", columnList = "status, locked_until")
 })
 public class ShowSeat {
 
@@ -38,6 +41,13 @@ public class ShowSeat {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
+    @Column(name = "locked_until")
+    private LocalDateTime lockedUntil;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "locked_by_id")
+    private User lockedBy;
+
     @Version
     @Column(nullable = false)
     private Long version = 0L;
@@ -53,22 +63,40 @@ public class ShowSeat {
         this.version = 0L;
     }
 
+    public void lock(User user, LocalDateTime until) {
+        if (this.status != ShowSeatStatus.AVAILABLE) {
+            throw new IllegalStateException("Cannot lock seat: current status is " + this.status);
+        }
+        this.status = ShowSeatStatus.LOCKED;
+        this.lockedBy = user;
+        this.lockedUntil = until;
+    }
+
     public void hold() {
         if (this.status != ShowSeatStatus.AVAILABLE) {
             throw new IllegalStateException("Cannot hold seat: current status is " + this.status);
         }
         this.status = ShowSeatStatus.HELD;
+        this.lockedUntil = LocalDateTime.now().plusMinutes(5);
     }
 
     public void book() {
-        if (this.status != ShowSeatStatus.HELD && this.status != ShowSeatStatus.AVAILABLE) {
+        if (this.status != ShowSeatStatus.LOCKED && this.status != ShowSeatStatus.HELD && this.status != ShowSeatStatus.AVAILABLE) {
             throw new IllegalStateException("Cannot book seat: current status is " + this.status);
         }
         this.status = ShowSeatStatus.BOOKED;
+        this.lockedUntil = null;
     }
 
     public void release() {
         this.status = ShowSeatStatus.AVAILABLE;
+        this.lockedBy = null;
+        this.lockedUntil = null;
+    }
+
+    public boolean isLockExpired(LocalDateTime now) {
+        return (this.status == ShowSeatStatus.LOCKED || this.status == ShowSeatStatus.HELD)
+                && this.lockedUntil != null && this.lockedUntil.isBefore(now);
     }
 
     public Long getId() {
@@ -109,6 +137,22 @@ public class ShowSeat {
 
     public void setPrice(BigDecimal price) {
         this.price = price;
+    }
+
+    public LocalDateTime getLockedUntil() {
+        return lockedUntil;
+    }
+
+    public void setLockedUntil(LocalDateTime lockedUntil) {
+        this.lockedUntil = lockedUntil;
+    }
+
+    public User getLockedBy() {
+        return lockedBy;
+    }
+
+    public void setLockedBy(User lockedBy) {
+        this.lockedBy = lockedBy;
     }
 
     public Long getVersion() {

@@ -104,7 +104,7 @@ class ConcurrencyBookingIntegrationTest {
             startLatch.await();
             try {
                 BookingDTO b = bookingService.createBooking(user1.getEmail(), req);
-                if (b != null && b.getStatus() == BookingStatus.CONFIRMED) {
+                if (b != null && (b.getStatus() == BookingStatus.PENDING_PAYMENT || b.getStatus() == BookingStatus.CONFIRMED)) {
                     successCount.incrementAndGet();
                 }
             } catch (Exception e) {
@@ -118,7 +118,7 @@ class ConcurrencyBookingIntegrationTest {
             startLatch.await();
             try {
                 BookingDTO b = bookingService.createBooking(user2.getEmail(), req);
-                if (b != null && b.getStatus() == BookingStatus.CONFIRMED) {
+                if (b != null && (b.getStatus() == BookingStatus.PENDING_PAYMENT || b.getStatus() == BookingStatus.CONFIRMED)) {
                     successCount.incrementAndGet();
                 }
             } catch (Exception e) {
@@ -146,7 +146,7 @@ class ConcurrencyBookingIntegrationTest {
         // 4. Verify database state
         ShowSeat fresh1 = showSeatRepository.findById(ss1.getId()).orElseThrow();
         ShowSeat fresh2 = showSeatRepository.findById(ss2.getId()).orElseThrow();
-        assertEquals(ShowSeatStatus.BOOKED, fresh1.getStatus());
-        assertEquals(ShowSeatStatus.BOOKED, fresh2.getStatus());
+        assertEquals(ShowSeatStatus.LOCKED, fresh1.getStatus());
+        assertEquals(ShowSeatStatus.LOCKED, fresh2.getStatus());
     }
 }

@@ -1,5 +1,5 @@
 @startuml
-title CineSmart — Sequence Diagram: Seat Holding & Payment Confirmation
+title CineSmart — Sequence Diagram: Phase 4 Booking Confirmation, Payment Processing & Refund
 
 autonumber
 skinparam monochrome false
@@ -10,97 +10,173 @@ skinparam defaultFontSize 12
 
 actor "Customer" as Customer
 participant "React Frontend" as UI
-participant "SeatHoldController" as HoldCtrl
-participant "SeatHoldService" as HoldSvc
+participant "BookingController" as BookCtrl
+participant "BookingService" as BookSvc
 participant "PaymentController" as PayCtrl
 participant "PaymentService" as PaySvc
-participant "MockPaymentProvider" as Gateway
-participant "BookingService" as BookSvc
+participant "PaymentGateway (Strategy)" as Gateway
 participant "TicketService" as TicketSvc
-participant "NotificationService" as NotifySvc
 database "PostgreSQL Database" as DB
 
-== Phase 1: Concurrency-Safe Seat Hold Acquisition ==
+== Flow 1: Seat Selection & Pending Booking Creation ==
 
-Customer -> UI : Select Seats [E5, E6, E7] & Click "Hold & Checkout"
+Customer -> UI : Select Seats [A1, A2] & Click "Proceed to Payment"
 activate UI
-UI -> HoldCtrl : POST /api/v1/seat-holds\n{showId: 101, seatIds: [501, 502, 503]}
-activate HoldCtrl
+UI -> BookCtrl : POST /api/bookings\n{showId: 1, seatIds: [10, 11]}
+activate BookCtrl
 
-HoldCtrl -> HoldSvc : acquireTemporaryHold(userId, showId, seatIds)
-activate HoldSvc
-
-HoldSvc -> DB : BEGIN TRANSACTION\nSELECT * FROM show_seats WHERE id IN (501,502,503)\nFOR UPDATE
-activate DB
-DB --> HoldSvc : 3 rows locked (status = 'AVAILABLE')
-
-HoldSvc -> DB : UPDATE show_seats SET status = 'HELD', version = version + 1\nWHERE id IN (501,502,503)
-HoldSvc -> DB : INSERT INTO seat_holds (user_id, show_id, expires_at, status)\nVALUES (user_1, 101, NOW() + INTERVAL '8 min', 'ACTIVE')
-HoldSvc -> DB : INSERT INTO bookings (user_id, show_id, status, total_amount)\nVALUES (user_1, 101, 'PENDING_PAYMENT', 45.00)
-HoldSvc -> DB : INSERT INTO booking_seats (booking_id, show_seat_id, unit_price)\nVALUES (book_10, 501, 15.00), (book_10, 502, 15.00)...
-HoldSvc -> DB : COMMIT TRANSACTION
-deactivate DB
-
-HoldSvc --> HoldCtrl : SeatHoldResponseDTO (holdId: 88, bookingId: 10, expiresAt: "19:58:00")
-deactivate HoldSvc
-HoldCtrl --> UI : HTTP 201 Created (holdId, bookingId, expiresAt)
-deactivate HoldCtrl
-
-UI -> Customer : Display Checkout Page with 8-Minute Countdown Timer
-
-== Phase 2: Payment Execution & Booking Confirmation ==
-
-Customer -> UI : Enter Card Details & Submit Payment
-UI -> PayCtrl : POST /api/v1/payments/process\nHeader: Idempotency-Key: "uuid-pay-991"\n{bookingId: 10, holdId: 88, amount: 45.00}
-activate PayCtrl
-
-PayCtrl -> PaySvc : processPayment(paymentDTO, idempotencyKey)
-activate PaySvc
-
-PaySvc -> DB : SELECT * FROM seat_holds WHERE id = 88 AND status = 'ACTIVE'
-activate DB
-DB --> PaySvc : Hold valid (expires in 5 minutes)
-deactivate DB
-
-PaySvc -> Gateway : processPayment(amount: 45.00, token: "tok_visa_valid")
-activate Gateway
-Gateway --> PaySvc : PaymentResponse(status: SUCCESS, txnRef: "TXN-88219")
-deactivate Gateway
-
-PaySvc -> DB : BEGIN TRANSACTION
-activate DB
-PaySvc -> DB : INSERT INTO payments (booking_id, amount, status, gateway_txn_id)\nVALUES (10, 45.00, 'SUCCESS', 'TXN-88219')
-
-PaySvc -> BookSvc : confirmBooking(bookingId = 10)
+BookCtrl -> BookSvc : createBooking(userId, request)
 activate BookSvc
 
-BookSvc -> DB : UPDATE bookings SET status = 'CONFIRMED', confirmed_at = NOW()\nWHERE id = 10
-BookSvc -> DB : UPDATE show_seats SET status = 'BOOKED' WHERE id IN (501,502,503)
-BookSvc -> DB : UPDATE seat_holds SET status = 'CONVERTED_TO_BOOKING' WHERE id = 88
+BookSvc -> DB : BEGIN TRANSACTION\nSELECT * FROM show_seats WHERE id IN (10, 11) FOR UPDATE
+activate DB
+DB --> BookSvc : Seats locked (Status = AVAILABLE)
 
-BookSvc -> TicketSvc : generateTicketsForBooking(bookingId = 10)
-activate TicketSvc
-TicketSvc -> DB : INSERT INTO tickets (booking_seat_id, ticket_code, qr_hash, status)\nVALUES (seat_501, 'TKT-001', 'hash_abc', 'ISSUED')...
-TicketSvc --> BookSvc : List<TicketDTO>
-deactivate TicketSvc
-
-BookSvc -> NotifySvc : publishEvent(new BookingConfirmedEvent(bookingId = 10))
-activate NotifySvc
-NotifySvc -> Customer : Async Email / SMS ("Your CineSmart Tickets are Confirmed!")
-deactivate NotifySvc
-
-BookSvc --> PaySvc : BookingConfirmationDTO
-deactivate BookSvc
-
-PaySvc -> DB : COMMIT TRANSACTION
+BookSvc -> BookSvc : Calculate Server-Side Amount (Total = ₹300.00)
+BookSvc -> DB : UPDATE show_seats SET status = 'HELD' WHERE id IN (10, 11)
+BookSvc -> DB : INSERT INTO bookings (booking_ref, status = 'PENDING_PAYMENT', total_amount = 300.00)
+BookSvc -> DB : COMMIT TRANSACTION
 deactivate DB
 
-PaySvc --> PayCtrl : PaymentSuccessDTO
+BookSvc --> BookCtrl : BookingDTO (id: 12, reference: "CS-2026-000012", status: "PENDING_PAYMENT")
+deactivate BookSvc
+BookCtrl --> UI : 201 Created (BookingDTO)
+deactivate BookCtrl
+
+UI -> Customer : Display Payment Modal with Server-Calculated Amount (₹300.00)
+
+== Flow 2: Payment Initiation & Gateway Processing ==
+
+Customer -> UI : Selects Payment Method (UPI) & Clicks "Pay Now"
+UI -> PayCtrl : POST /api/payments\n{bookingId: 12, paymentMethod: "UPI"}
+activate PayCtrl
+
+PayCtrl -> PaySvc : initiatePayment(userId, request)
+activate PaySvc
+
+PaySvc -> DB : SELECT * FROM bookings WHERE id = 12
+activate DB
+DB --> PaySvc : Booking (status: PENDING_PAYMENT, amount: 300.00)
+deactivate DB
+
+PaySvc -> DB : INSERT INTO payment_transactions\n(txn_ref, booking_id, amount, status = 'INITIATED', method = 'UPI')
+activate DB
+deactivate DB
+
+PaySvc --> PayCtrl : PaymentTransactionDTO (id: 45, status: "INITIATED")
 deactivate PaySvc
-PayCtrl --> UI : HTTP 200 OK (Booking Confirmed, Tickets with QR Code data)
+PayCtrl --> UI : 201 Created (PaymentTransactionDTO)
 deactivate PayCtrl
 
-UI -> Customer : Render Confirmation Screen with Digital QR Tickets
+UI -> PayCtrl : POST /api/payments/45/process\n{simulateSuccess: true}
+activate PayCtrl
+PayCtrl -> PaySvc : processPayment(userId, txnId = 45, request)
+activate PaySvc
+
+PaySvc -> DB : UPDATE payment_transactions SET status = 'PROCESSING'
+activate DB
+deactivate DB
+
+PaySvc -> Gateway : processPayment(PaymentGatewayRequest)
+activate Gateway
+
+alt Gateway Processing: SUCCESS
+    Gateway --> PaySvc : PaymentGatewayResponse (SUCCESS, gatewayRef: "MOCK-GW-XXXXXX")
+    deactivate Gateway
+
+    PaySvc -> DB : UPDATE payment_transactions SET status = 'SUCCESS', completed_at = NOW()
+    activate DB
+    deactivate DB
+
+    PaySvc -> BookSvc : confirmBooking(bookingId = 12)
+    activate BookSvc
+    BookSvc -> DB : UPDATE bookings SET status = 'CONFIRMED', confirmed_at = NOW()
+    activate DB
+    BookSvc -> DB : UPDATE show_seats SET status = 'BOOKED' WHERE id IN (10, 11)
+    deactivate DB
+
+    BookSvc -> TicketSvc : generateTicketsForBooking(booking)
+    activate TicketSvc
+    TicketSvc -> DB : INSERT INTO tickets (ticket_code: "TKT-2026-XXXXXX", qr_hash, status: 'ACTIVE')
+    activate DB
+    deactivate DB
+    TicketSvc --> BookSvc : List<TicketDTO>
+    deactivate TicketSvc
+
+    BookSvc --> PaySvc : BookingConfirmed
+    deactivate BookSvc
+
+    PaySvc --> PayCtrl : PaymentTransactionDTO (status: SUCCESS, tickets: [...])
+    PayCtrl --> UI : 200 OK (Payment & Booking Confirmed, Digital Tickets with QR)
+    UI -> Customer : Display Success Screen with Ticket Passes & QR Hashes
+
+else Gateway Processing: DECLINE / FAILED
+    activate Gateway
+    Gateway --> PaySvc : PaymentGatewayResponse (FAILED, failureReason: "Card declined")
+    deactivate Gateway
+
+    PaySvc -> DB : UPDATE payment_transactions SET status = 'FAILED'
+    activate DB
+    deactivate DB
+
+    PaySvc -> BookSvc : handlePaymentFailure(bookingId = 12)
+    activate BookSvc
+    BookSvc -> DB : UPDATE bookings SET status = 'PAYMENT_FAILED'
+    activate DB
+    BookSvc -> DB : UPDATE show_seats SET status = 'AVAILABLE' WHERE id IN (10, 11)
+    deactivate DB
+    BookSvc --> PaySvc : FailureHandled
+    deactivate BookSvc
+
+    PaySvc --> PayCtrl : PaymentTransactionDTO (status: FAILED)
+    PayCtrl --> UI : 400 Bad Request / Failed Response
+    UI -> Customer : Display "Payment Failed. Selected seats have been released."
+end
+deactivate PaySvc
+deactivate PayCtrl
+
+== Flow 3: Cancellation & Refund Workflow ==
+
+Customer -> UI : Click "Cancel Booking" on Confirmed Reservation
+UI -> BookCtrl : POST /api/bookings/12/cancel
+activate BookCtrl
+
+BookCtrl -> BookSvc : cancelBooking(userId, bookingId = 12)
+activate BookSvc
+
+BookSvc -> DB : SELECT * FROM bookings WHERE id = 12
+activate DB
+DB --> BookSvc : Booking (status: CONFIRMED)
+deactivate DB
+
+BookSvc -> DB : UPDATE bookings SET status = 'CANCELLED'
+activate DB
+BookSvc -> DB : UPDATE show_seats SET status = 'AVAILABLE' WHERE id IN (10, 11)
+BookSvc -> DB : UPDATE tickets SET status = 'CANCELLED' WHERE booking_id = 12
+deactivate DB
+
+BookSvc -> PaySvc : refundBookingPayment(bookingId = 12)
+activate PaySvc
+
+PaySvc -> Gateway : refundPayment(RefundGatewayRequest)
+activate Gateway
+Gateway --> PaySvc : RefundGatewayResponse (REFUNDED, refundRef: "REFUND-MOCK-XXXX")
+deactivate Gateway
+
+PaySvc -> DB : UPDATE payment_transactions SET status = 'REFUNDED'
+activate DB
+deactivate DB
+
+PaySvc --> BookSvc : RefundSuccessful
+deactivate PaySvc
+
+BookSvc --> BookCtrl : BookingDTO (status: CANCELLED)
+deactivate BookSvc
+
+BookCtrl --> UI : 200 OK (Booking Cancelled & Refunded)
+deactivate BookCtrl
+
+UI -> Customer : Notification: "Booking Cancelled & Refund Initiated"
 deactivate UI
 
 @enduml

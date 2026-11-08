@@ -147,11 +147,10 @@ package "Show & Real-Time Inventory Model" {
 package "Booking & Ticket Model" {
   enum BookingStatus {
     PENDING_PAYMENT
-    PAYMENT_PENDING_VERIFICATION
     CONFIRMED
+    PAYMENT_FAILED
     CANCELLED
-    CANCELLED_BY_CINEMA
-    EXPIRED
+    REFUNDED
   }
 
   class Booking {
@@ -161,10 +160,15 @@ package "Booking & Ticket Model" {
     - status : BookingStatus
     - createdAt : LocalDateTime
     - confirmedAt : LocalDateTime
+    - user : User
+    - show : Show
+    - seats : List<BookingSeat>
+    - tickets : List<Ticket>
+    - paymentTransactions : List<PaymentTransaction>
     + confirm() : void
     + cancel() : void
-    + expire() : void
-    + markPendingVerification() : void
+    + markPaymentFailed() : void
+    + markRefunded() : void
   }
 
   class BookingSeat {
@@ -176,45 +180,82 @@ package "Booking & Ticket Model" {
   }
 
   enum TicketStatus {
-    ISSUED
+    ACTIVE
     USED
-    VOIDED
+    CANCELLED
   }
 
   class Ticket {
     - id : Long
     - ticketCode : String
-    - qrVerificationHash : String
+    - qrCodeHash : String
     - status : TicketStatus
+    - price : BigDecimal
     - issuedAt : LocalDateTime
     - validatedAt : LocalDateTime
-    + validateEntry(staffId: Long) : boolean
-    + voidTicket() : void
+    - booking : Booking
+    - showSeat : ShowSeat
+    + markUsed() : void
+    + cancel() : void
   }
 }
 
-package "Payment & Reconciliation Model" {
+package "Payment & Gateway Architecture (Phase 4)" {
   enum PaymentStatus {
-    PENDING
+    INITIATED
+    PROCESSING
     SUCCESS
     FAILED
-    PENDING_RECONCILIATION
+    CANCELLED
     REFUNDED
   }
 
-  class Payment {
+  enum PaymentMethod {
+    UPI
+    CARD
+    NET_BANKING
+    WALLET
+  }
+
+  enum PaymentGatewayType {
+    MOCK
+    RAZORPAY
+    STRIPE
+  }
+
+  class PaymentTransaction {
     - id : Long
-    - idempotencyKey : String
-    - gatewayTxnId : String
+    - transactionReference : String
+    - gatewayReference : String
     - amount : BigDecimal
-    - paymentMethod : String
+    - currency : String
     - status : PaymentStatus
+    - paymentMethod : PaymentMethod
+    - gatewayType : PaymentGatewayType
+    - idempotencyKey : String
     - failureReason : String
     - createdAt : LocalDateTime
-    - reconciledAt : LocalDateTime
-    + markSuccess(txnId: String) : void
+    - updatedAt : LocalDateTime
+    - completedAt : LocalDateTime
+    - booking : Booking
+    - user : User
+    + markProcessing(gatewayRef: String) : void
+    + markSuccess(gatewayRef: String) : void
     + markFailed(reason: String) : void
-    + markReconciled() : void
+    + markCancelled(reason: String) : void
+    + markRefunded(refundRef: String) : void
+  }
+
+  interface PaymentGateway <<strategy>> {
+    + processPayment(request: PaymentGatewayRequest) : PaymentGatewayResponse
+    + refundPayment(request: RefundGatewayRequest) : RefundGatewayResponse
+    + getGatewayType() : PaymentGatewayType
+  }
+
+  class MockPaymentGateway implements PaymentGateway {
+    + processPayment(request: PaymentGatewayRequest) : PaymentGatewayResponse
+    + refundPayment(request: RefundGatewayRequest) : RefundGatewayResponse
+    + getGatewayType() : PaymentGatewayType
   }
 }
 

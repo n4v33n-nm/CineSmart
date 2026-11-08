@@ -36,7 +36,7 @@ export function ShowCard({ show }) {
 
         <div style={{ borderLeft: '1px solid var(--border-subtle)', paddingLeft: '1.25rem' }}>
           <div style={{ color: 'var(--accent-gold)', fontWeight: 700, fontSize: '1.1rem' }}>
-            ${Number(show.basePrice).toFixed(2)}
+            ₹{Number(show.basePrice).toFixed(2)}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
             <Armchair size={13} />

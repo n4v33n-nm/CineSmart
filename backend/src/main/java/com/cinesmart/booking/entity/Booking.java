@@ -52,6 +52,9 @@ public class Booking {
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
 
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookingSeat> bookingSeats = new ArrayList<>();
 
@@ -79,6 +82,14 @@ public class Booking {
 
     public void cancel() {
         this.status = BookingStatus.CANCELLED;
+    }
+
+    public void markPaymentFailed() {
+        this.status = BookingStatus.PAYMENT_FAILED;
+    }
+
+    public void markRefunded() {
+        this.status = BookingStatus.REFUNDED;
     }
 
     public Long getId() {
@@ -143,6 +154,14 @@ public class Booking {
 
     public void setConfirmedAt(LocalDateTime confirmedAt) {
         this.confirmedAt = confirmedAt;
+    }
+
+    public LocalDateTime getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(LocalDateTime expiresAt) {
+        this.expiresAt = expiresAt;
     }
 
     public List<BookingSeat> getBookingSeats() {

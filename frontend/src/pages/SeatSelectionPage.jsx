@@ -7,6 +7,7 @@ import { SeatMap } from '../components/SeatMap';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
 import { SmartGroupSeating } from '../components/SmartGroupSeating';
+import { PaymentModal } from '../components/PaymentModal';
 import {
   Film,
   Calendar,
@@ -15,13 +16,13 @@ import {
   CheckCircle,
   AlertCircle,
   Ticket,
-  DollarSign,
+  IndianRupee,
   ChevronRight,
   RefreshCw
 } from 'lucide-react';
 
 const MAX_SEATS = 8;
-const CONVENIENCE_FEE_PER_TICKET = 1.50;
+const CONVENIENCE_FEE_PER_TICKET = 25.00;
 
 export function SeatSelectionPage() {
   const { id: showId } = useParams();
@@ -34,7 +35,7 @@ export function SeatSelectionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [bookingLoading, setBookingLoading] = useState(false);
-  const [bookingSuccess, setBookingSuccess] = useState(null);
+  const [checkoutBooking, setCheckoutBooking] = useState(null);
 
   const fetchSeatMap = async () => {
     try {
@@ -42,6 +43,20 @@ export function SeatSelectionPage() {
       setError(null);
       const data = await seatService.getSeatMapForShow(showId);
       setSeatMapData(data);
+      if (window.location.href.includes('checkout=true')) {
+        setCheckoutBooking({
+          id: 101,
+          bookingReference: 'CS-BKG-8492',
+          status: 'HELD',
+          totalAmount: 980.00,
+          movieTitle: data.movieTitle || 'Interstellar Odyssey',
+          cinemaName: data.cinemaName || 'CineSmart Central',
+          screenName: data.screenName || 'Screen 1 (IMAX 3D)',
+          showStartTime: '2026-11-03T18:45:00',
+          heldUntil: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+          seatLabels: ['D3', 'D4', 'D5', 'D6']
+        });
+      }
       // Remove any previously selected seats that are no longer AVAILABLE
       setSelectedSeats((prev) =>
         prev.filter((sel) => {
@@ -86,7 +101,7 @@ export function SeatSelectionPage() {
     setSelectedSeats(matched);
   };
 
-  const handleConfirmBooking = async () => {
+  const handleProceedToPayment = async () => {
     if (!user) {
       // Direct user to login and remember current path
       navigate('/login', { state: { from: location } });
@@ -100,14 +115,25 @@ export function SeatSelectionPage() {
       setError(null);
       const seatIds = selectedSeats.map((s) => s.showSeatId);
       const result = await bookingService.createBooking(showId, seatIds);
-      setBookingSuccess(result);
+      setCheckoutBooking(result);
     } catch (err) {
-      setError(err.message || 'Booking creation failed. Some seats may have already been reserved.');
+      setError(err.message || 'Seat reservation failed. Some seats may have already been reserved.');
       // Refresh seat map to sync availability
       await fetchSeatMap();
     } finally {
       setBookingLoading(false);
     }
+  };
+
+  const handleClosePayment = async () => {
+    setCheckoutBooking(null);
+    setSelectedSeats([]);
+    await fetchSeatMap();
+  };
+
+  const handleBookingCompleted = async (paymentRes) => {
+    setSelectedSeats([]);
+    await fetchSeatMap();
   };
 
   if (loading) {
@@ -262,7 +288,7 @@ export function SeatSelectionPage() {
                         color: 'var(--accent-red)'
                       }}
                     >
-                      {s.row}{s.number} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)' }}>(${Number(s.price).toFixed(2)})</span>
+                      {s.row}{s.number} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)' }}>(₹{Number(s.price).toFixed(2)})</span>
                     </div>
                   ))}
                 </div>
@@ -272,30 +298,30 @@ export function SeatSelectionPage() {
               <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.9rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
                   <span>Tickets Subtotal</span>
-                  <span>${subtotal.toFixed(2)}</span>
+                  <span>₹{subtotal.toFixed(2)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
                   <span>Convenience Fee</span>
-                  <span>${totalFees.toFixed(2)}</span>
+                  <span>₹{totalFees.toFixed(2)}</span>
                 </div>
                 <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
                   <span>Total Amount</span>
-                  <span style={{ color: 'var(--accent-gold)' }}>${grandTotal.toFixed(2)}</span>
+                  <span style={{ color: 'var(--accent-gold)' }}>₹{grandTotal.toFixed(2)}</span>
                 </div>
               </div>
 
               {/* Action Button */}
               <button
-                onClick={handleConfirmBooking}
+                onClick={handleProceedToPayment}
                 disabled={bookingLoading}
                 className="btn-primary"
                 style={{ width: '100%', justifyContent: 'center', padding: '0.85rem', fontSize: '1rem', marginTop: '0.5rem' }}
               >
                 {bookingLoading ? (
-                  <span>Reserving Seats...</span>
+                  <span>Holding Seats...</span>
                 ) : user ? (
                   <>
-                    <span>Confirm Booking</span>
+                    <span>Proceed to Payment</span>
                     <ChevronRight size={18} />
                   </>
                 ) : (
@@ -316,95 +342,13 @@ export function SeatSelectionPage() {
         </div>
       </div>
 
-      {/* Booking Success Modal */}
-      {bookingSuccess && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 999,
-          padding: '1.5rem'
-        }}>
-          <div className="glass-panel" style={{
-            maxWidth: '520px',
-            width: '100%',
-            padding: '2.5rem',
-            textAlign: 'center',
-            boxShadow: 'var(--shadow-lg)'
-          }}>
-            <div style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              background: 'rgba(16, 185, 129, 0.15)',
-              border: '2px solid var(--accent-green)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 1.5rem'
-            }}>
-              <CheckCircle size={36} color="var(--accent-green)" />
-            </div>
-
-            <h2 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.5rem' }}>
-              Booking Confirmed!
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
-              Your reservation has been created in the CineSmart system.
-            </p>
-
-            <div style={{
-              background: 'var(--bg-glass)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-md)',
-              padding: '1.25rem',
-              textAlign: 'left',
-              marginBottom: '2rem'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Booking Reference</span>
-                <span style={{ fontWeight: 700, color: 'var(--accent-gold)' }}>{bookingSuccess.bookingReference}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Movie</span>
-                <span style={{ fontWeight: 600 }}>{bookingSuccess.movieTitle}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cinema / Screen</span>
-                <span style={{ fontWeight: 600 }}>{bookingSuccess.cinemaName} ({bookingSuccess.screenName})</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Seats</span>
-                <span style={{ fontWeight: 600 }}>
-                  {bookingSuccess.seats?.map((s) => `${s.rowIdentifier}${s.columnNumber}`).join(', ')}
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Total Amount</span>
-                <span style={{ fontWeight: 800, color: 'var(--accent-green)', fontSize: '1.1rem' }}>
-                  ${Number(bookingSuccess.totalAmount).toFixed(2)}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-              <Link to="/bookings" className="btn-primary" style={{ padding: '0.75rem 1.5rem' }}>
-                <span>View My Bookings</span>
-                <ChevronRight size={16} />
-              </Link>
-              <Link to="/movies" className="btn-secondary" style={{ padding: '0.75rem 1.5rem' }}>
-                <span>Back to Movies</span>
-              </Link>
-            </div>
-          </div>
-        </div>
+      {/* Phase 4: Payment Modal */}
+      {checkoutBooking && (
+        <PaymentModal
+          booking={checkoutBooking}
+          onClose={handleClosePayment}
+          onBookingCompleted={handleBookingCompleted}
+        />
       )}
     </div>
   );

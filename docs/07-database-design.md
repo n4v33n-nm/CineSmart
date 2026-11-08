@@ -207,20 +207,20 @@ Tracks countdown holds and locks during checkout.
 ---
 
 ### 3.8 Table: `bookings`
-Parent entity managing transaction state.
+Parent entity managing reservation lifecycle and transaction states.
 
 | Column Name | Data Type | Nullable | Constraints & Defaults | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `id` | `BIGSERIAL` | No | `PRIMARY KEY` | Booking ID |
-| `booking_reference` | `VARCHAR(32)` | No | `UNIQUE` | Human-readable ref (e.g., `CS-2026-9041`) |
+| `booking_reference` | `VARCHAR(32)` | No | `UNIQUE` | Human-readable ref (e.g., `CS-2026-000012`) |
 | `user_id` | `BIGINT` | No | `REFERENCES users(id) ON DELETE RESTRICT` | Booking customer |
 | `show_id` | `BIGINT` | No | `REFERENCES shows(id) ON DELETE RESTRICT` | Reserved show |
-| `total_amount` | `NUMERIC(10, 2)` | No | `CHECK (total_amount >= 0)` | Total price including taxes |
-| `status` | `VARCHAR(30)` | No | `DEFAULT 'PENDING_PAYMENT'` | `PENDING_PAYMENT`, `PAYMENT_PENDING_VERIFICATION`, `CONFIRMED`, `CANCELLED`, `CANCELLED_BY_CINEMA`, `EXPIRED` |
+| `total_amount` | `NUMERIC(10, 2)` | No | `CHECK (total_amount >= 0)` | Total price calculated server-side |
+| `status` | `VARCHAR(30)` | No | `DEFAULT 'PENDING_PAYMENT'` | `PENDING_PAYMENT`, `CONFIRMED`, `PAYMENT_FAILED`, `CANCELLED`, `REFUNDED` |
 | `created_at` | `TIMESTAMP WITH TIME ZONE` | No | `DEFAULT CURRENT_TIMESTAMP` | Creation timestamp |
 | `confirmed_at` | `TIMESTAMP WITH TIME ZONE` | Yes | | Payment confirmation timestamp |
 
-* **Check Constraints:** `CHECK (status IN ('PENDING_PAYMENT', 'PAYMENT_PENDING_VERIFICATION', 'CONFIRMED', 'CANCELLED', 'CANCELLED_BY_CINEMA', 'EXPIRED'))`
+* **Check Constraints:** `CHECK (status IN ('PENDING_PAYMENT', 'CONFIRMED', 'PAYMENT_FAILED', 'CANCELLED', 'REFUNDED'))`
 * **Indexes:** `CREATE INDEX idx_bookings_user ON bookings(user_id);`, `CREATE INDEX idx_bookings_status ON bookings(status);`
 
 ---
@@ -237,50 +237,52 @@ Itemized line-item snapshot of each seat within a booking.
 | `seat_label` | `VARCHAR(10)` | No | | Snapshot label (e.g., "F-8") |
 | `tier_snapshot` | `VARCHAR(30)` | No | | Snapshot of seat tier at time of purchase |
 
-* **Critical Unique Constraint (Prevention of Duplicate Confirmed Seats):**
-  ```sql
-  CREATE UNIQUE INDEX idx_unique_confirmed_seat_per_show
-  ON booking_seats (show_seat_id);
-  ```
-  *(Note: Enforced via transaction lifecycle and application cascading, or scoped to non-cancelled bookings).*
-
 ---
 
-### 3.10 Table: `payments`
-Tracks monetary transactions, gateway tokens, and reconciliation state.
+### 3.10 Table: `payment_transactions`
+Tracks monetary transactions, gateway tokens, and payment lifecycle states.
 
 | Column Name | Data Type | Nullable | Constraints & Defaults | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `id` | `BIGSERIAL` | No | `PRIMARY KEY` | Payment record ID |
+| `transaction_reference`| `VARCHAR(64)` | No | `UNIQUE` | Unique reference (e.g., `TXN-2026-000045`) |
+| `gateway_reference` | `VARCHAR(128)` | Yes | | External/mock provider reference |
 | `booking_id` | `BIGINT` | No | `REFERENCES bookings(id) ON DELETE RESTRICT` | Associated booking |
-| `idempotency_key` | `VARCHAR(64)` | No | `UNIQUE` | Unique token preventing duplicate charges |
-| `gateway_txn_id` | `VARCHAR(100)` | Yes | | External payment provider transaction reference |
-| `amount` | `NUMERIC(10, 2)` | No | `CHECK (amount > 0)` | Debited financial amount |
-| `payment_method` | `VARCHAR(30)` | No | | `CARD`, `UPI`, `NET_BANKING`, `SIMULATED_MOCK` |
-| `status` | `VARCHAR(30)` | No | `DEFAULT 'PENDING'` | `PENDING`, `SUCCESS`, `FAILED`, `PENDING_RECONCILIATION`, `REFUNDED` |
-| `failure_reason` | `VARCHAR(255)` | Yes | | Error message if declined |
-| `created_at` | `TIMESTAMP WITH TIME ZONE` | No | `DEFAULT CURRENT_TIMESTAMP` | Attempt timestamp |
-| `reconciled_at` | `TIMESTAMP WITH TIME ZONE` | Yes | | Background reconciliation timestamp |
+| `user_id` | `BIGINT` | No | `REFERENCES users(id) ON DELETE RESTRICT` | Payer user account |
+| `amount` | `NUMERIC(10, 2)` | No | `CHECK (amount > 0)` | Server-validated payable amount |
+| `currency` | `VARCHAR(10)` | No | `DEFAULT 'INR'` | Currency code |
+| `status` | `VARCHAR(30)` | No | `DEFAULT 'INITIATED'` | `INITIATED`, `PROCESSING`, `SUCCESS`, `FAILED`, `CANCELLED`, `REFUNDED` |
+| `payment_method` | `VARCHAR(30)` | No | | `UPI`, `CARD`, `NET_BANKING`, `WALLET` |
+| `gateway_type` | `VARCHAR(30)` | No | `DEFAULT 'MOCK'` | `MOCK`, `RAZORPAY`, `STRIPE` |
+| `idempotency_key` | `VARCHAR(128)` | Yes | `UNIQUE` | Idempotent transaction token |
+| `failure_reason` | `VARCHAR(255)` | Yes | | Error/decline message if failed |
+| `created_at` | `TIMESTAMP WITH TIME ZONE` | No | `DEFAULT CURRENT_TIMESTAMP` | Initiation timestamp |
+| `updated_at` | `TIMESTAMP WITH TIME ZONE` | No | `DEFAULT CURRENT_TIMESTAMP` | Last modification timestamp |
+| `completed_at` | `TIMESTAMP WITH TIME ZONE` | Yes | | Gateway completion/settlement timestamp |
 
-* **Check Constraints:** `CHECK (status IN ('PENDING', 'SUCCESS', 'FAILED', 'PENDING_RECONCILIATION', 'REFUNDED'))`
+* **Check Constraints:**
+  * `CHECK (status IN ('INITIATED', 'PROCESSING', 'SUCCESS', 'FAILED', 'CANCELLED', 'REFUNDED'))`
+  * `CHECK (payment_method IN ('UPI', 'CARD', 'NET_BANKING', 'WALLET'))`
+  * `CHECK (gateway_type IN ('MOCK', 'RAZORPAY', 'STRIPE'))`
 
 ---
 
 ### 3.11 Table: `tickets`
-Digital tickets issued to patrons for cinema entry.
+Digital tickets issued to patrons upon payment confirmation with SHA-256 verification QR hash.
 
 | Column Name | Data Type | Nullable | Constraints & Defaults | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `id` | `BIGSERIAL` | No | `PRIMARY KEY` | Ticket identifier |
-| `booking_seat_id` | `BIGINT` | No | `UNIQUE REFERENCES booking_seats(id) ON DELETE RESTRICT` | Exact seat booked |
-| `ticket_code` | `VARCHAR(32)` | No | `UNIQUE` | Alphanumeric entry code |
-| `qr_verification_hash`| `VARCHAR(255)`| No | | Cryptographic HMAC hash encoded in QR |
-| `status` | `VARCHAR(20)` | No | `DEFAULT 'ISSUED'` | `ISSUED`, `USED`, `VOIDED` |
+| `booking_id` | `BIGINT` | No | `REFERENCES bookings(id) ON DELETE CASCADE` | Associated booking |
+| `show_seat_id` | `BIGINT` | No | `REFERENCES show_seats(id) ON DELETE RESTRICT` | Exact show seat |
+| `ticket_code` | `VARCHAR(64)` | No | `UNIQUE` | Formatted entry code (e.g., `TKT-2026-F8A190`) |
+| `qr_code_hash` | `VARCHAR(255)` | No | | Cryptographic SHA-256 hash encoded in QR |
+| `price` | `NUMERIC(10, 2)` | No | `CHECK (price >= 0)` | Individual seat ticket price |
+| `status` | `VARCHAR(20)` | No | `DEFAULT 'ACTIVE'` | `ACTIVE`, `USED`, `CANCELLED` |
 | `issued_at` | `TIMESTAMP WITH TIME ZONE` | No | `DEFAULT CURRENT_TIMESTAMP` | Issuance timestamp |
 | `validated_at` | `TIMESTAMP WITH TIME ZONE` | Yes | | Gate scanning timestamp |
-| `validated_by` | `BIGINT` | Yes | `REFERENCES users(id)` | Cinema staff member who scanned ticket |
 
-* **Check Constraints:** `CHECK (status IN ('ISSUED', 'USED', 'VOIDED'))`
+* **Check Constraints:** `CHECK (status IN ('ACTIVE', 'USED', 'CANCELLED'))`
 
 ---
 

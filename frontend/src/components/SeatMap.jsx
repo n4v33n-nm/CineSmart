@@ -76,15 +76,19 @@ export function SeatMap({ seats = [], selectedSeats = [], onSeatToggle }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.3)', border: '1px solid var(--accent-gold)' }} />
-          <span>Held</span>
+          <span>Locked / Held</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'var(--seat-booked)' }} />
           <span>Booked</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'rgba(234, 179, 8, 0.2)', border: '1px solid var(--accent-gold)' }} />
+          <span>Premium (+₹50)</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'rgba(139, 92, 246, 0.3)', border: '1px solid var(--accent-purple)' }} />
-          <span>Recliner (+$6)</span>
+          <span>Recliner (+₹100)</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.3)', border: '1px solid var(--seat-accessible)' }} />

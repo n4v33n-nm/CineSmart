@@ -25,6 +25,7 @@ public class BookingDTO {
     private BookingStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime confirmedAt;
+    private LocalDateTime expiresAt;
     private List<BookingSeatDTO> seats;
 
     public BookingDTO() {
@@ -57,6 +58,7 @@ public class BookingDTO {
         dto.setStatus(booking.getStatus());
         dto.setCreatedAt(booking.getCreatedAt());
         dto.setConfirmedAt(booking.getConfirmedAt());
+        dto.setExpiresAt(booking.getExpiresAt());
 
         if (booking.getBookingSeats() != null) {
             dto.setSeats(booking.getBookingSeats().stream()
@@ -179,6 +181,14 @@ public class BookingDTO {
 
     public void setConfirmedAt(LocalDateTime confirmedAt) {
         this.confirmedAt = confirmedAt;
+    }
+
+    public LocalDateTime getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(LocalDateTime expiresAt) {
+        this.expiresAt = expiresAt;
     }
 
     public List<BookingSeatDTO> getSeats() {

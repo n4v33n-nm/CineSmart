@@ -161,7 +161,7 @@ export function LoginPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
             <button
               type="button"
-              onClick={() => handleDemoLogin('customer@cinesmart.com', 'password123')}
+              onClick={() => handleDemoLogin('customer@cinesmart.com', 'Customer123!')}
               className="btn-secondary"
               style={{ padding: '0.45rem', fontSize: '0.75rem', justifyContent: 'center' }}
             >
@@ -169,7 +169,7 @@ export function LoginPage() {
             </button>
             <button
               type="button"
-              onClick={() => handleDemoLogin('admin@cinesmart.com', 'admin123')}
+              onClick={() => handleDemoLogin('admin@cinesmart.com', 'Admin123!')}
               className="btn-secondary"
               style={{ padding: '0.45rem', fontSize: '0.75rem', justifyContent: 'center', borderColor: 'rgba(234, 179, 8, 0.4)' }}
             >
@@ -177,7 +177,7 @@ export function LoginPage() {
             </button>
             <button
               type="button"
-              onClick={() => handleDemoLogin('staff@cinesmart.com', 'staff123')}
+              onClick={() => handleDemoLogin('staff@cinesmart.com', 'Staff123!')}
               className="btn-secondary"
               style={{ padding: '0.45rem', fontSize: '0.75rem', justifyContent: 'center', borderColor: 'rgba(6, 182, 212, 0.4)' }}
             >

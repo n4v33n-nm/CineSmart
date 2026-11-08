@@ -501,3 +501,129 @@ All non-$2xx$ error responses return a standardized JSON structure:
   "message": "Show cancelled. 42 bookings refunded and customers alerted."
 }
 ```
+
+---
+
+## 10. Phase 4: Payment, Booking Confirmation & Ticket Endpoints (`/api/payments`, `/api/bookings`, `/api/tickets`)
+
+### 10.1 Initiate Payment Transaction
+* **Method & Endpoint:** `POST /api/payments` or `POST /api/payments/initiate`
+* **Purpose:** Create an `INITIATED` payment transaction for a pending booking with server-side amount calculation.
+* **Auth Requirement:** Authenticated (`ROLE_CUSTOMER`, `ROLE_STAFF`, `ROLE_ADMIN`)
+* **Request Body:**
+```json
+{
+  "bookingId": 12,
+  "paymentMethod": "UPI",
+  "gatewayType": "MOCK",
+  "idempotencyKey": "uuid-txn-9812-a"
+}
+```
+* **Success Response (`201 Created`):**
+```json
+{
+  "id": 45,
+  "transactionReference": "TXN-2026-000045",
+  "gatewayReference": "MOCK-INIT-TXN-2026-000045",
+  "bookingId": 12,
+  "bookingReference": "CS-2026-000012",
+  "userId": 101,
+  "amount": 300.00,
+  "currency": "INR",
+  "status": "INITIATED",
+  "paymentMethod": "UPI",
+  "gatewayType": "MOCK",
+  "createdAt": "2026-10-03T19:30:00Z"
+}
+```
+
+### 10.2 Process Payment via Gateway
+* **Method & Endpoint:** `POST /api/payments/{transactionId}/process`
+* **Purpose:** Process the payment transaction via Strategy-pattern PaymentGateway (`MockPaymentGateway`).
+* **Auth Requirement:** Authenticated (Owner of booking or Admin)
+* **Request Body (Simulation Mode):**
+```json
+{
+  "simulateSuccess": true,
+  "failureReason": null
+}
+```
+* **Success Response (`200 OK` — Payment Success & Booking Confirmed):**
+```json
+{
+  "id": 45,
+  "transactionReference": "TXN-2026-000045",
+  "gatewayReference": "MOCK-GW-7F892A1B",
+  "bookingId": 12,
+  "bookingReference": "CS-2026-000012",
+  "amount": 300.00,
+  "status": "SUCCESS",
+  "paymentMethod": "UPI",
+  "completedAt": "2026-10-03T19:30:02Z",
+  "tickets": [
+    {
+      "id": 81,
+      "ticketCode": "TKT-2026-48A102",
+      "qrCodeHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "seatLabel": "A1",
+      "seatTier": "STANDARD",
+      "price": 150.00,
+      "status": "ACTIVE"
+    },
+    {
+      "id": 82,
+      "ticketCode": "TKT-2026-48A103",
+      "qrCodeHash": "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4",
+      "seatLabel": "A2",
+      "seatTier": "STANDARD",
+      "price": 150.00,
+      "status": "ACTIVE"
+    }
+  ]
+}
+```
+* **Failure Response (`200 OK` or `400 Bad Request` — Payment Failed):**
+```json
+{
+  "id": 45,
+  "status": "FAILED",
+  "failureReason": "Simulated card decline: Insufficient balance"
+}
+```
+*(Held seats are automatically released back to `AVAILABLE`, and booking status is updated to `PAYMENT_FAILED`)*.
+
+### 10.3 Cancel Booking & Trigger Refund
+* **Method & Endpoint:** `POST /api/bookings/{id}/cancel`
+* **Purpose:** Cancel a confirmed or pending booking. Releases seats to `AVAILABLE` and initiates mock refund for paid bookings.
+* **Auth Requirement:** Authenticated (Owner of booking or Admin)
+* **Success Response (`200 OK`):**
+```json
+{
+  "id": 12,
+  "bookingReference": "CS-2026-000012",
+  "status": "CANCELLED",
+  "totalAmount": 300.00,
+  "message": "Booking cancelled successfully. Seats released."
+}
+```
+
+### 10.4 Get Digital Tickets
+* **Method & Endpoint:** `GET /api/tickets/booking/{bookingId}`
+* **Purpose:** Retrieve generated digital passes with verification QR token.
+* **Auth Requirement:** Authenticated (Owner of booking or Admin)
+* **Success Response (`200 OK`):**
+```json
+[
+  {
+    "id": 81,
+    "ticketCode": "TKT-2026-48A102",
+    "qrCodeHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "seatLabel": "A1",
+    "seatTier": "STANDARD",
+    "price": 150.00,
+    "status": "ACTIVE",
+    "issuedAt": "2026-10-03T19:30:02Z"
+  }
+]
+```
+
