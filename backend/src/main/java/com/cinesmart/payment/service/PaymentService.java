@@ -105,6 +105,11 @@ public class PaymentService {
 
         // Validate booking status
         if (booking.getStatus() == BookingStatus.CONFIRMED) {
+            Optional<PaymentTransaction> existingSuccess = paymentTransactionRepository.findByBookingIdAndStatus(booking.getId(), PaymentStatus.SUCCESS);
+            if (existingSuccess.isPresent()) {
+                log.info("Booking {} is already confirmed and paid. Idempotently returning existing successful transaction.", booking.getId());
+                return mapToDTOWithTickets(existingSuccess.get());
+            }
             throw new BadRequestException("Booking is already confirmed and paid", "ALREADY_PAID");
         }
         if (booking.getStatus() == BookingStatus.CANCELLED || booking.getStatus() == BookingStatus.CANCELLED_BY_CINEMA) {
@@ -137,7 +142,8 @@ public class PaymentService {
         // Check if there is already a SUCCESS payment for this booking
         Optional<PaymentTransaction> existingSuccess = paymentTransactionRepository.findByBookingIdAndStatus(booking.getId(), PaymentStatus.SUCCESS);
         if (existingSuccess.isPresent()) {
-            throw new BadRequestException("Payment already completed for this booking", "PAYMENT_ALREADY_COMPLETED");
+            log.info("Payment already completed for booking {}. Idempotently returning existing record.", booking.getId());
+            return mapToDTOWithTickets(existingSuccess.get());
         }
 
         // Validate Payment Method

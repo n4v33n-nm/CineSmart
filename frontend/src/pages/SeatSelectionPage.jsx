@@ -36,6 +36,7 @@ export function SeatSelectionPage() {
   const [error, setError] = useState(null);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [checkoutBooking, setCheckoutBooking] = useState(null);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
 
   const fetchSeatMap = async () => {
     try {
@@ -43,20 +44,6 @@ export function SeatSelectionPage() {
       setError(null);
       const data = await seatService.getSeatMapForShow(showId);
       setSeatMapData(data);
-      if (window.location.href.includes('checkout=true')) {
-        setCheckoutBooking({
-          id: 101,
-          bookingReference: 'CS-BKG-8492',
-          status: 'HELD',
-          totalAmount: 980.00,
-          movieTitle: data.movieTitle || 'Interstellar Odyssey',
-          cinemaName: data.cinemaName || 'CineSmart Central',
-          screenName: data.screenName || 'Screen 1 (IMAX 3D)',
-          showStartTime: '2026-11-03T18:45:00',
-          heldUntil: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-          seatLabels: ['D3', 'D4', 'D5', 'D6']
-        });
-      }
       // Remove any previously selected seats that are no longer AVAILABLE
       setSelectedSeats((prev) =>
         prev.filter((sel) => {
@@ -130,6 +117,7 @@ export function SeatSelectionPage() {
     try {
       setBookingLoading(true);
       setError(null);
+      setPaymentCompleted(false);
       const seatIds = selectedSeats.map((s) => s.showSeatId);
       const result = await bookingService.createBooking(showId, seatIds);
       setCheckoutBooking(result);
@@ -143,7 +131,8 @@ export function SeatSelectionPage() {
   };
 
   const handleClosePayment = async () => {
-    if (checkoutBooking && checkoutBooking.id) {
+    // Only cancel the booking hold if the payment was NOT completed
+    if (checkoutBooking && checkoutBooking.id && !paymentCompleted) {
       try {
         await bookingService.cancelBooking(checkoutBooking.id);
       } catch (e) {
@@ -151,11 +140,13 @@ export function SeatSelectionPage() {
       }
     }
     setCheckoutBooking(null);
+    setPaymentCompleted(false);
     setSelectedSeats([]);
     await fetchSeatMap();
   };
 
   const handleBookingCompleted = async (paymentRes) => {
+    setPaymentCompleted(true);
     setSelectedSeats([]);
     await fetchSeatMap();
   };

@@ -11,3 +11,4 @@ CREATE TABLE IF NOT EXISTS ticket_verification_logs (
 
 CREATE INDEX IF NOT EXISTS idx_ticket_verification_logs_result ON ticket_verification_logs(result);
 CREATE INDEX IF NOT EXISTS idx_ticket_verification_logs_time ON ticket_verification_logs(attempted_at);
+

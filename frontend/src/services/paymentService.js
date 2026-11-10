@@ -1,12 +1,13 @@
 import { api } from './api';
 
 export const paymentService = {
-  async initiateAndProcessPayment(bookingId, paymentMethod, simulateSuccess = true, failureReason = null) {
+  async initiateAndProcessPayment(bookingId, paymentMethod, simulateSuccess = true, failureReason = null, idempotencyKey = null) {
     const res = await api.post('/payments', {
       bookingId,
       paymentMethod,
       simulateSuccess,
       failureReason,
+      idempotencyKey,
     });
     return res.data;
   },

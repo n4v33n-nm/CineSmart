@@ -102,3 +102,4 @@ public class TicketVerificationLog {
         this.attemptedAt = attemptedAt;
     }
 }
+

@@ -15,3 +15,4 @@ public interface TicketVerificationLogRepository extends JpaRepository<TicketVer
 
     List<TicketVerificationLog> findTop20ByOrderByAttemptedAtDesc();
 }
+

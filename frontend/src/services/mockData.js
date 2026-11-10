@@ -113,7 +113,7 @@ export const MOCK_SHOWS = [
     cinemaName: 'CineSmart Central',
     startTime: '2026-11-03T10:00:00',
     endTime: '2026-11-03T12:49:00',
-    basePrice: 180.00,
+    basePrice: 200.00,
     status: 'SCHEDULED',
     availableSeats: 34,
     totalSeats: 48
@@ -127,7 +127,7 @@ export const MOCK_SHOWS = [
     cinemaName: 'CineSmart Central',
     startTime: '2026-11-03T13:30:00',
     endTime: '2026-11-03T16:19:00',
-    basePrice: 220.00,
+    basePrice: 200.00,
     status: 'SCHEDULED',
     availableSeats: 28,
     totalSeats: 48
@@ -141,7 +141,7 @@ export const MOCK_SHOWS = [
     cinemaName: 'CineSmart Central',
     startTime: '2026-11-03T18:45:00',
     endTime: '2026-11-03T21:34:00',
-    basePrice: 250.00,
+    basePrice: 200.00,
     status: 'SCHEDULED',
     availableSeats: 16,
     totalSeats: 48

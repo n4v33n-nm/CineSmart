@@ -60,3 +60,4 @@ public class TicketStatsDTO {
         this.recentVerifications = recentVerifications;
     }
 }
+

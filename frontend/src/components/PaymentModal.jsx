@@ -86,29 +86,51 @@ export function PaymentModal({ booking, onClose, onBookingCompleted }) {
   }, [timeLeft, paymentResult, loading]);
 
   const handlePay = async () => {
+    if (loading || paymentResult) return;
     try {
       setLoading(true);
       setPaymentError(null);
 
+      const idempotencyKey = `IDEM-PAY-${booking.id}-${Date.now()}`;
       const res = await paymentService.initiateAndProcessPayment(
         booking.id,
         paymentMethod,
         simulateSuccess,
-        simulateSuccess ? null : failureReason
+        simulateSuccess ? null : failureReason,
+        idempotencyKey
       );
 
-      if (res.status === 'SUCCESS') {
+      if (res && res.status === 'SUCCESS') {
         setPaymentResult(res);
         if (onBookingCompleted) {
           onBookingCompleted(res);
         }
       } else {
         setPaymentError({
-          message: res.failureReason || 'Payment declined by simulated payment gateway.',
+          message: res?.failureReason || 'Payment declined by simulated payment gateway.',
           details: res
         });
       }
     } catch (err) {
+      // If error indicates booking is already confirmed, treat as success and show tickets!
+      if (
+        err.errorCode === 'ALREADY_PAID' ||
+        err.errorCode === 'PAYMENT_ALREADY_COMPLETED' ||
+        err.message?.includes('already confirmed')
+      ) {
+        try {
+          const payments = await paymentService.getPaymentsForBooking(booking.id);
+          const successPayment = payments.find((p) => p.status === 'SUCCESS');
+          if (successPayment) {
+            setPaymentResult(successPayment);
+            if (onBookingCompleted) {
+              onBookingCompleted(successPayment);
+            }
+            return;
+          }
+        } catch (_) {}
+      }
+
       setPaymentError({
         message: err.message || 'Payment processing failed. Your held seats have been released.',
         details: err
@@ -638,6 +660,7 @@ export function PaymentModal({ booking, onClose, onBookingCompleted }) {
             {/* Pay Button */}
             <button
               onClick={handlePay}
+              disabled={loading || paymentResult !== null}
               className="btn-primary"
               style={{
                 width: '100%',
@@ -645,11 +668,22 @@ export function PaymentModal({ booking, onClose, onBookingCompleted }) {
                 padding: '0.9rem',
                 fontSize: '1.05rem',
                 fontWeight: 800,
-                marginBottom: '0.75rem'
+                marginBottom: '0.75rem',
+                opacity: loading ? 0.7 : 1,
+                cursor: loading ? 'not-allowed' : 'pointer'
               }}
             >
-              <span>Pay ₹{Number(booking.totalAmount).toFixed(2)} with {paymentMethod}</span>
-              <ChevronRight size={18} />
+              {loading ? (
+                <>
+                  <RefreshCw size={18} className="spin" />
+                  <span>Processing Payment...</span>
+                </>
+              ) : (
+                <>
+                  <span>Pay ₹{Number(booking.totalAmount).toFixed(2)} with {paymentMethod}</span>
+                  <ChevronRight size={18} />
+                </>
+              )}
             </button>
 
             <button

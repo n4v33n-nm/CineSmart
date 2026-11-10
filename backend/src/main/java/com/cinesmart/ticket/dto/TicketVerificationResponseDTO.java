@@ -80,3 +80,4 @@ public class TicketVerificationResponseDTO {
         this.verifiedBy = verifiedBy;
     }
 }
+

@@ -77,3 +77,4 @@ public class TicketVerificationLogDTO {
         this.attemptedAt = attemptedAt;
     }
 }
+

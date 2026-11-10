@@ -36,3 +36,4 @@ public class TicketVerificationRequest {
         this.verificationHash = verificationHash;
     }
 }
+
