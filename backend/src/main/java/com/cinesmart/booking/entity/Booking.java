@@ -41,6 +41,21 @@ public class Booking {
     @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal totalAmount;
 
+    @Column(name = "original_amount", precision = 10, scale = 2)
+    private BigDecimal originalAmount;
+
+    @Column(name = "discount_amount", precision = 10, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
+    @Column(name = "coupon_code", length = 50)
+    private String couponCode;
+
+    @Column(name = "loyalty_points_redeemed")
+    private Integer loyaltyPointsRedeemed = 0;
+
+    @Column(name = "loyalty_discount_amount", precision = 10, scale = 2)
+    private BigDecimal loyaltyDiscountAmount = BigDecimal.ZERO;
+
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
@@ -170,5 +185,45 @@ public class Booking {
 
     public void setBookingSeats(List<BookingSeat> bookingSeats) {
         this.bookingSeats = bookingSeats;
+    }
+
+    public BigDecimal getOriginalAmount() {
+        return originalAmount;
+    }
+
+    public void setOriginalAmount(BigDecimal originalAmount) {
+        this.originalAmount = originalAmount;
+    }
+
+    public BigDecimal getDiscountAmount() {
+        return discountAmount != null ? discountAmount : BigDecimal.ZERO;
+    }
+
+    public void setDiscountAmount(BigDecimal discountAmount) {
+        this.discountAmount = discountAmount;
+    }
+
+    public String getCouponCode() {
+        return couponCode;
+    }
+
+    public void setCouponCode(String couponCode) {
+        this.couponCode = couponCode;
+    }
+
+    public Integer getLoyaltyPointsRedeemed() {
+        return loyaltyPointsRedeemed != null ? loyaltyPointsRedeemed : 0;
+    }
+
+    public void setLoyaltyPointsRedeemed(Integer loyaltyPointsRedeemed) {
+        this.loyaltyPointsRedeemed = loyaltyPointsRedeemed;
+    }
+
+    public BigDecimal getLoyaltyDiscountAmount() {
+        return loyaltyDiscountAmount != null ? loyaltyDiscountAmount : BigDecimal.ZERO;
+    }
+
+    public void setLoyaltyDiscountAmount(BigDecimal loyaltyDiscountAmount) {
+        this.loyaltyDiscountAmount = loyaltyDiscountAmount;
     }
 }

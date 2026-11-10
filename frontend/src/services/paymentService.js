@@ -1,13 +1,15 @@
 import { api } from './api';
 
 export const paymentService = {
-  async initiateAndProcessPayment(bookingId, paymentMethod, simulateSuccess = true, failureReason = null, idempotencyKey = null) {
+  async initiateAndProcessPayment(bookingId, paymentMethod, simulateSuccess = true, failureReason = null, idempotencyKey = null, couponCode = null, loyaltyPointsToRedeem = 0) {
     const res = await api.post('/payments', {
       bookingId,
       paymentMethod,
       simulateSuccess,
       failureReason,
       idempotencyKey,
+      couponCode: couponCode || undefined,
+      loyaltyPointsToRedeem: loyaltyPointsToRedeem ? Number(loyaltyPointsToRedeem) : undefined,
     });
     return res.data;
   },

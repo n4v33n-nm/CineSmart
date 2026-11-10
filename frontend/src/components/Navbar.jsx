@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Film, User, LogOut, ShieldCheck, Ticket, LogIn, QrCode } from 'lucide-react';
+import { Film, User, LogOut, ShieldCheck, Ticket, LogIn, QrCode, Gift } from 'lucide-react';
 
 export function Navbar() {
   const { user, logout, isAdmin, isStaff } = useAuth();
@@ -34,6 +34,11 @@ export function Navbar() {
               <Link to="/bookings" style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                 <Ticket size={17} />
                 <span>My Bookings</span>
+              </Link>
+
+              <Link to="/rewards" style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Gift size={17} color="var(--accent-gold)" />
+                <span>Rewards</span>
               </Link>
 
               {(isAdmin || isStaff) && (

@@ -8,6 +8,11 @@ import com.cinesmart.booking.service.BookingService;
 import com.cinesmart.common.exception.BadRequestException;
 import com.cinesmart.common.exception.ResourceNotFoundException;
 import com.cinesmart.common.exception.SeatUnavailableException;
+import com.cinesmart.coupon.dto.CouponValidateResponseDTO;
+import com.cinesmart.coupon.entity.Coupon;
+import com.cinesmart.coupon.service.CouponService;
+import com.cinesmart.loyalty.dto.LoyaltyRedeemResponseDTO;
+import com.cinesmart.loyalty.service.LoyaltyService;
 import com.cinesmart.payment.dto.*;
 import com.cinesmart.payment.entity.PaymentMethod;
 import com.cinesmart.payment.entity.PaymentStatus;
@@ -45,19 +50,25 @@ public class PaymentService {
     private final PaymentGateway paymentGateway;
     private final BookingService bookingService;
     private final TicketService ticketService;
+    private final CouponService couponService;
+    private final LoyaltyService loyaltyService;
 
     public PaymentService(PaymentTransactionRepository paymentTransactionRepository,
                           BookingRepository bookingRepository,
                           UserRepository userRepository,
                           PaymentGateway paymentGateway,
                           @Lazy BookingService bookingService,
-                          TicketService ticketService) {
+                          TicketService ticketService,
+                          CouponService couponService,
+                          LoyaltyService loyaltyService) {
         this.paymentTransactionRepository = paymentTransactionRepository;
         this.bookingRepository = bookingRepository;
         this.userRepository = userRepository;
         this.paymentGateway = paymentGateway;
         this.bookingService = bookingService;
         this.ticketService = ticketService;
+        this.couponService = couponService;
+        this.loyaltyService = loyaltyService;
     }
 
     public PaymentResponseDTO getPaymentById(Long id, String userEmail) {
@@ -149,6 +160,57 @@ public class PaymentService {
         // Validate Payment Method
         PaymentMethod paymentMethod = PaymentMethod.fromString(request.getPaymentMethod());
 
+        // Initialize original amount if not set
+        java.math.BigDecimal originalAmount = booking.getOriginalAmount() != null && booking.getOriginalAmount().compareTo(java.math.BigDecimal.ZERO) > 0
+                ? booking.getOriginalAmount()
+                : booking.getTotalAmount();
+        booking.setOriginalAmount(originalAmount);
+
+        // Apply coupon discount if provided
+        java.math.BigDecimal couponDiscount = java.math.BigDecimal.ZERO;
+        if (request.getCouponCode() != null && !request.getCouponCode().trim().isEmpty()) {
+            String couponCode = request.getCouponCode().trim().toUpperCase();
+            CouponValidateResponseDTO couponResp = couponService.validateCoupon(couponCode, originalAmount, userEmail);
+            if (!couponResp.isValid()) {
+                throw new BadRequestException(couponResp.getMessage(), "INVALID_COUPON");
+            }
+            couponDiscount = couponResp.getDiscountAmount();
+            booking.setCouponCode(couponCode);
+            booking.setDiscountAmount(couponDiscount);
+        } else {
+            booking.setCouponCode(null);
+            booking.setDiscountAmount(java.math.BigDecimal.ZERO);
+        }
+
+        // Apply loyalty points discount if provided
+        java.math.BigDecimal loyaltyDiscount = java.math.BigDecimal.ZERO;
+        if (request.getLoyaltyPointsToRedeem() != null && request.getLoyaltyPointsToRedeem() > 0) {
+            java.math.BigDecimal amountAfterCoupon = originalAmount.subtract(couponDiscount);
+            if (amountAfterCoupon.compareTo(java.math.BigDecimal.ZERO) < 0) {
+                amountAfterCoupon = java.math.BigDecimal.ZERO;
+            }
+
+            LoyaltyRedeemResponseDTO loyaltyResp = loyaltyService.calculateRedemption(userEmail, request.getLoyaltyPointsToRedeem(), amountAfterCoupon);
+            if (!loyaltyResp.isValid()) {
+                throw new BadRequestException(loyaltyResp.getMessage(), "INVALID_LOYALTY_REDEMPTION");
+            }
+            int pointsToRedeem = loyaltyResp.getPointsRedeemed();
+            loyaltyDiscount = loyaltyResp.getDiscountAmount();
+            booking.setLoyaltyPointsRedeemed(pointsToRedeem);
+            booking.setLoyaltyDiscountAmount(loyaltyDiscount);
+        } else {
+            booking.setLoyaltyPointsRedeemed(0);
+            booking.setLoyaltyDiscountAmount(java.math.BigDecimal.ZERO);
+        }
+
+        // Final payable amount
+        java.math.BigDecimal finalPayable = originalAmount.subtract(couponDiscount).subtract(loyaltyDiscount);
+        if (finalPayable.compareTo(java.math.BigDecimal.ZERO) < 0) {
+            finalPayable = java.math.BigDecimal.ZERO;
+        }
+        booking.setTotalAmount(finalPayable);
+        bookingRepository.save(booking);
+
         // Amount is strictly calculated server-side from booking entity (CLIENT AMOUNT IS NEVER TRUSTED)
         String ref = "TXN-" + LocalDateTime.now().getYear() + "-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase();
 
@@ -157,7 +219,7 @@ public class PaymentService {
                 booking,
                 user,
                 idempotencyKey,
-                booking.getTotalAmount(),
+                finalPayable,
                 "INR",
                 paymentMethod
         );
@@ -354,7 +416,23 @@ public class PaymentService {
 
             // Confirm the booking, permanently transition seats to BOOKED, and generate tickets
             bookingService.confirmBooking(txn.getBooking().getId());
-            log.info("Payment {} SUCCESS. Booking {} confirmed.", txn.getTransactionReference(), txn.getBooking().getId());
+
+            // Record coupon usage if coupon was applied
+            if (booking.getCouponCode() != null && booking.getDiscountAmount() != null
+                    && booking.getDiscountAmount().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                Optional<Coupon> couponOpt = couponService.findByCode(booking.getCouponCode());
+                couponOpt.ifPresent(c -> couponService.recordCouponUsage(c, txn.getUser(), booking, booking.getDiscountAmount()));
+            }
+
+            // Deduct redeemed loyalty points if any
+            if (booking.getLoyaltyPointsRedeemed() != null && booking.getLoyaltyPointsRedeemed() > 0) {
+                loyaltyService.redeemPointsForBooking(booking, booking.getLoyaltyPointsRedeemed());
+            }
+
+            // Award loyalty points for booking
+            loyaltyService.awardPointsForBooking(booking);
+
+            log.info("Payment {} SUCCESS. Booking {} confirmed and rewards updated.", txn.getTransactionReference(), txn.getBooking().getId());
         } else {
             txn.markFailed(response.getStatusMessage());
             paymentTransactionRepository.save(txn);

@@ -9,6 +9,8 @@ import com.cinesmart.booking.repository.BookingRepository;
 import com.cinesmart.common.exception.BadRequestException;
 import com.cinesmart.common.exception.ResourceNotFoundException;
 import com.cinesmart.common.exception.SeatUnavailableException;
+import com.cinesmart.coupon.service.CouponService;
+import com.cinesmart.loyalty.service.LoyaltyService;
 import com.cinesmart.payment.service.PaymentService;
 import com.cinesmart.show.entity.Show;
 import com.cinesmart.show.entity.ShowSeat;
@@ -46,6 +48,8 @@ public class BookingService {
     private final UserRepository userRepository;
     private final TicketService ticketService;
     private final PaymentService paymentService;
+    private final CouponService couponService;
+    private final LoyaltyService loyaltyService;
 
     @Value("${cinesmart.booking.lock-timeout-minutes:5}")
     private int lockTimeoutMinutes = 5;
@@ -55,13 +59,17 @@ public class BookingService {
                           ShowSeatRepository showSeatRepository,
                           UserRepository userRepository,
                           TicketService ticketService,
-                          @Lazy PaymentService paymentService) {
+                          @Lazy PaymentService paymentService,
+                          CouponService couponService,
+                          LoyaltyService loyaltyService) {
         this.bookingRepository = bookingRepository;
         this.showRepository = showRepository;
         this.showSeatRepository = showSeatRepository;
         this.userRepository = userRepository;
         this.ticketService = ticketService;
         this.paymentService = paymentService;
+        this.couponService = couponService;
+        this.loyaltyService = loyaltyService;
     }
 
     public List<BookingDTO> getUserBookings(String userEmail) {
@@ -263,10 +271,12 @@ public class BookingService {
 
         boolean wasConfirmed = (booking.getStatus() == BookingStatus.CONFIRMED);
 
-        // If booking was confirmed, refund payment and void tickets
+        // If booking was confirmed, refund payment, void tickets, release coupon, and reverse loyalty points
         if (wasConfirmed) {
             paymentService.refundBookingPayment(booking, userEmail);
             ticketService.voidTicketsForBooking(booking);
+            couponService.releaseCouponUsage(booking.getId());
+            loyaltyService.reversePointsForBooking(booking);
         }
 
         // Release seats back to AVAILABLE

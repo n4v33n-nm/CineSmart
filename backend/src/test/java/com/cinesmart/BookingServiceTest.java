@@ -7,6 +7,9 @@ import com.cinesmart.booking.entity.BookingStatus;
 import com.cinesmart.booking.repository.BookingRepository;
 import com.cinesmart.booking.service.BookingService;
 import com.cinesmart.common.exception.SeatUnavailableException;
+import com.cinesmart.coupon.service.CouponService;
+import com.cinesmart.loyalty.service.LoyaltyService;
+import com.cinesmart.payment.service.PaymentService;
 import com.cinesmart.seat.entity.Seat;
 import com.cinesmart.seat.entity.SeatTier;
 import com.cinesmart.show.entity.Show;
@@ -14,6 +17,7 @@ import com.cinesmart.show.entity.ShowSeat;
 import com.cinesmart.show.entity.ShowSeatStatus;
 import com.cinesmart.show.repository.ShowRepository;
 import com.cinesmart.show.repository.ShowSeatRepository;
+import com.cinesmart.ticket.service.TicketService;
 import com.cinesmart.user.entity.User;
 import com.cinesmart.user.entity.UserRole;
 import com.cinesmart.user.repository.UserRepository;
@@ -46,6 +50,14 @@ class BookingServiceTest {
     private ShowSeatRepository showSeatRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private TicketService ticketService;
+    @Mock
+    private PaymentService paymentService;
+    @Mock
+    private CouponService couponService;
+    @Mock
+    private LoyaltyService loyaltyService;
 
     @InjectMocks
     private BookingService bookingService;

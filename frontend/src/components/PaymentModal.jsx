@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { paymentService } from '../services/paymentService';
 import { bookingService } from '../services/bookingService';
+import { couponService } from '../services/couponService';
+import { loyaltyService } from '../services/loyaltyService';
 import {
   CreditCard,
   Smartphone,
@@ -16,7 +18,11 @@ import {
   RefreshCw,
   X,
   ChevronRight,
-  QrCode
+  QrCode,
+  Tag,
+  Gift,
+  Sparkles,
+  Percent
 } from 'lucide-react';
 
 export function PaymentModal({ booking, onClose, onBookingCompleted }) {
@@ -33,6 +39,19 @@ export function PaymentModal({ booking, onClose, onBookingCompleted }) {
   const [upiId, setUpiId] = useState('customer@okhdfcbank');
   const [selectedBank, setSelectedBank] = useState('HDFC Bank');
   const [selectedWallet, setSelectedWallet] = useState('Paytm');
+
+  // Coupon and Loyalty States
+  const [activeCoupons, setActiveCoupons] = useState([]);
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponError, setCouponError] = useState(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+
+  const [loyaltyAccount, setLoyaltyAccount] = useState(null);
+  const [redeemLoyalty, setRedeemLoyalty] = useState(false);
+  const [pointsToRedeem, setPointsToRedeem] = useState(0);
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
+  const [loyaltyError, setLoyaltyError] = useState(null);
 
   // Real-Time 5-minute Seat Lock Countdown
   const [timeLeft, setTimeLeft] = useState(() => {
@@ -98,6 +117,106 @@ export function PaymentModal({ booking, onClose, onBookingCompleted }) {
     return () => clearInterval(timer);
   }, [timeLeft, paymentResult, loading]);
 
+  const originalAmount = Number(booking.originalAmount || booking.totalAmount || 0);
+
+  // Fetch active promotional coupons and user loyalty balance
+  useEffect(() => {
+    let isMounted = true;
+    const fetchPromosAndRewards = async () => {
+      try {
+        const [couponsRes, loyaltyRes] = await Promise.allSettled([
+          couponService.getActiveCoupons(),
+          loyaltyService.getBalance()
+        ]);
+        if (isMounted) {
+          if (couponsRes.status === 'fulfilled' && couponsRes.value?.data) {
+            setActiveCoupons(couponsRes.value.data);
+          }
+          if (loyaltyRes.status === 'fulfilled' && loyaltyRes.value?.data) {
+            setLoyaltyAccount(loyaltyRes.value.data);
+          }
+        }
+      } catch (e) {
+        console.warn('Error fetching promo/loyalty info:', e);
+      }
+    };
+    fetchPromosAndRewards();
+    return () => { isMounted = false; };
+  }, []);
+
+  const handleApplyCoupon = async (codeToApply) => {
+    const code = (codeToApply || couponInput || '').trim().toUpperCase();
+    if (!code) {
+      setCouponError('Please enter a coupon code.');
+      return;
+    }
+    setValidatingCoupon(true);
+    setCouponError(null);
+    try {
+      const res = await couponService.validateCoupon(code, originalAmount);
+      const data = res?.data || res;
+      if (data && data.valid) {
+        setAppliedCoupon(data);
+        setCouponInput(code);
+        setCouponError(null);
+      } else {
+        setCouponError(data?.message || 'Invalid coupon code or minimum booking criteria not met.');
+      }
+    } catch (err) {
+      setCouponError(err.message || 'Failed to validate coupon.');
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput('');
+    setCouponError(null);
+  };
+
+  // Recalculate loyalty discount when toggle changes or points change
+  const couponDiscountAmount = appliedCoupon ? Number(appliedCoupon.discountAmount || 0) : 0;
+  const amountAfterCoupon = Math.max(0, originalAmount - couponDiscountAmount);
+
+  const handleToggleLoyalty = (e) => {
+    const checked = e.target.checked;
+    setRedeemLoyalty(checked);
+    if (!checked) {
+      setPointsToRedeem(0);
+      setLoyaltyDiscount(0);
+      setLoyaltyError(null);
+    } else {
+      if (loyaltyAccount && loyaltyAccount.pointsBalance > 0) {
+        const maxRedeemable = Math.min(loyaltyAccount.pointsBalance, Math.floor(amountAfterCoupon));
+        setPointsToRedeem(maxRedeemable);
+        setLoyaltyDiscount(maxRedeemable); // 1 pt = ₹1
+        setLoyaltyError(null);
+      }
+    }
+  };
+
+  const handlePointsChange = (e) => {
+    const val = parseInt(e.target.value, 10) || 0;
+    const maxPoints = loyaltyAccount ? loyaltyAccount.pointsBalance : 0;
+    const maxRedeemable = Math.min(maxPoints, Math.floor(amountAfterCoupon));
+    if (val < 0) {
+      setPointsToRedeem(0);
+      setLoyaltyDiscount(0);
+    } else if (val > maxRedeemable) {
+      setPointsToRedeem(maxRedeemable);
+      setLoyaltyDiscount(maxRedeemable);
+      setLoyaltyError(`Maximum points you can redeem for this order is ${maxRedeemable}.`);
+    } else {
+      setPointsToRedeem(val);
+      setLoyaltyDiscount(val);
+      setLoyaltyError(null);
+    }
+  };
+
+  // Calculated final payable amount
+  const finalPayable = Math.max(0, originalAmount - couponDiscountAmount - (redeemLoyalty ? loyaltyDiscount : 0));
+
   const handlePay = async () => {
     if (loading || paymentResult) return;
     try {
@@ -110,7 +229,9 @@ export function PaymentModal({ booking, onClose, onBookingCompleted }) {
         paymentMethod,
         simulateSuccess,
         simulateSuccess ? null : failureReason,
-        idempotencyKey
+        idempotencyKey,
+        appliedCoupon ? appliedCoupon.code : null,
+        redeemLoyalty ? pointsToRedeem : 0
       );
 
       if (res && res.status === 'SUCCESS') {
@@ -303,8 +424,13 @@ export function PaymentModal({ booking, onClose, onBookingCompleted }) {
                 <div>
                   <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Amount Paid</span>
                   <strong style={{ color: 'var(--accent-green)', fontSize: '1.05rem' }}>
-                    ₹{Number(paymentResult.amount || booking.totalAmount).toFixed(2)}
+                    ₹{Number(paymentResult.amount || finalPayable).toFixed(2)}
                   </strong>
+                  {(appliedCoupon || pointsToRedeem > 0) && (
+                    <div style={{ fontSize: '0.72rem', color: 'var(--accent-gold)', marginTop: '0.15rem' }}>
+                      Savings: ₹{(couponDiscountAmount + (redeemLoyalty ? loyaltyDiscount : 0)).toFixed(2)}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -477,14 +603,14 @@ export function PaymentModal({ booking, onClose, onBookingCompleted }) {
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-md)',
               padding: '1.1rem',
-              marginBottom: '1.5rem'
+              marginBottom: '1.25rem'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                 <span style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
                   {booking.movieTitle}
                 </span>
                 <span style={{ fontWeight: 800, color: 'var(--accent-gold)', fontSize: '1.15rem' }}>
-                  ₹{Number(booking.totalAmount).toFixed(2)}
+                  ₹{Number(originalAmount).toFixed(2)}
                 </span>
               </div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
@@ -502,6 +628,262 @@ export function PaymentModal({ booking, onClose, onBookingCompleted }) {
                     {s.seatLabel || `${s.rowIdentifier}${s.columnNumber}`}
                   </span>
                 ))}
+              </div>
+            </div>
+
+            {/* PROMOTIONAL OFFERS & COUPONS */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              padding: '1rem',
+              marginBottom: '1.25rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.75rem' }}>
+                <Tag size={16} color="var(--accent-gold)" />
+                <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  Offers & Promo Coupons
+                </span>
+              </div>
+
+              {appliedCoupon ? (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: 'rgba(34, 197, 94, 0.12)',
+                  border: '1px solid rgba(34, 197, 94, 0.35)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '0.65rem 0.85rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Sparkles size={16} color="var(--accent-green)" />
+                    <div>
+                      <div style={{ fontWeight: 800, color: 'var(--accent-green)', fontSize: '0.85rem' }}>
+                        {appliedCoupon.code} Applied
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        You saved ₹{Number(appliedCoupon.discountAmount).toFixed(2)} on this booking!
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                      color: 'var(--accent-red)',
+                      borderRadius: '4px',
+                      padding: '0.25rem 0.55rem',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.65rem' }}>
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      placeholder="Enter coupon code (e.g. WELCOME50)"
+                      className="input-field"
+                      style={{ flex: 1, textTransform: 'uppercase', fontSize: '0.85rem', padding: '0.55rem 0.75rem' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleApplyCoupon()}
+                      disabled={validatingCoupon || !couponInput.trim()}
+                      className="btn-secondary"
+                      style={{ padding: '0.55rem 1rem', fontSize: '0.85rem', fontWeight: 700 }}
+                    >
+                      {validatingCoupon ? 'Validating...' : 'Apply'}
+                    </button>
+                  </div>
+
+                  {couponError && (
+                    <div style={{ color: 'var(--accent-red)', fontSize: '0.78rem', marginBottom: '0.65rem' }}>
+                      {couponError}
+                    </div>
+                  )}
+
+                  {activeCoupons.length > 0 && (
+                    <div>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
+                        Available Offers for You:
+                      </span>
+                      <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
+                        {activeCoupons.slice(0, 4).map((c) => (
+                          <div
+                            key={c.id || c.code}
+                            onClick={() => handleApplyCoupon(c.code)}
+                            style={{
+                              border: '1px dashed var(--border-subtle)',
+                              borderRadius: '4px',
+                              padding: '0.35rem 0.65rem',
+                              background: 'rgba(255, 255, 255, 0.04)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.4rem',
+                              fontSize: '0.75rem',
+                              transition: 'all 0.2s'
+                            }}
+                            title={c.description}
+                          >
+                            <span style={{ fontWeight: 800, color: 'var(--accent-gold)' }}>{c.code}</span>
+                            <span style={{ color: 'var(--text-muted)' }}>&bull; {c.discountType === 'PERCENTAGE' ? `${c.discountValue}% OFF` : `₹${c.discountValue} OFF`}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* CINESMART LOYALTY REWARDS */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              padding: '1rem',
+              marginBottom: '1.25rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <Gift size={16} color="var(--accent-gold)" />
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                    CineSmart Rewards
+                  </span>
+                </div>
+                {loyaltyAccount && (
+                  <span style={{
+                    fontSize: '0.75rem',
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    color: 'var(--accent-gold)',
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '10px',
+                    fontWeight: 700
+                  }}>
+                    Balance: {loyaltyAccount.pointsBalance} pts (₹{Number(loyaltyAccount.pointsBalance || 0).toFixed(2)})
+                  </span>
+                )}
+              </div>
+
+              {loyaltyAccount && loyaltyAccount.pointsBalance > 0 ? (
+                <div>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.55rem',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    color: 'var(--text-primary)'
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={redeemLoyalty}
+                      onChange={handleToggleLoyalty}
+                      style={{ width: '16px', height: '16px', accentColor: 'var(--accent-red)' }}
+                    />
+                    <span>
+                      Redeem points for instant discount (1 Point = ₹1.00)
+                    </span>
+                  </label>
+
+                  {redeemLoyalty && (
+                    <div style={{
+                      marginTop: '0.75rem',
+                      padding: '0.65rem 0.85rem',
+                      background: 'rgba(0, 0, 0, 0.25)',
+                      borderRadius: 'var(--radius-sm)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.4rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Points to Redeem:</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max={Math.min(loyaltyAccount.pointsBalance, Math.floor(amountAfterCoupon))}
+                            value={pointsToRedeem}
+                            onChange={handlePointsChange}
+                            className="input-field"
+                            style={{ width: '80px', padding: '0.25rem 0.5rem', fontSize: '0.85rem', textAlign: 'right' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const max = Math.min(loyaltyAccount.pointsBalance, Math.floor(amountAfterCoupon));
+                              setPointsToRedeem(max);
+                              setLoyaltyDiscount(max);
+                            }}
+                            className="btn-secondary"
+                            style={{ padding: '0.25rem 0.55rem', fontSize: '0.72rem' }}
+                          >
+                            Max
+                          </button>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--accent-green)', fontWeight: 600 }}>
+                        &bull; Redeeming {pointsToRedeem} points = ₹{Number(loyaltyDiscount).toFixed(2)} instant discount
+                      </div>
+                      {loyaltyError && (
+                        <div style={{ color: 'var(--accent-red)', fontSize: '0.75rem' }}>{loyaltyError}</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  You will earn <strong>1 reward point for every ₹10 spent</strong> on this confirmed booking!
+                </div>
+              )}
+            </div>
+
+            {/* ITEMIZED PRICE BREAKDOWN */}
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.3)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              padding: '0.85rem 1rem',
+              marginBottom: '1.25rem',
+              fontSize: '0.82rem'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', color: 'var(--text-secondary)' }}>
+                <span>Tickets Subtotal</span>
+                <span>₹{originalAmount.toFixed(2)}</span>
+              </div>
+              {appliedCoupon && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', color: 'var(--accent-green)' }}>
+                  <span>Coupon Discount ({appliedCoupon.code})</span>
+                  <span>-₹{couponDiscountAmount.toFixed(2)}</span>
+                </div>
+              )}
+              {redeemLoyalty && loyaltyDiscount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', color: 'var(--accent-green)' }}>
+                  <span>Loyalty Rewards ({pointsToRedeem} pts)</span>
+                  <span>-₹{loyaltyDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                paddingTop: '0.45rem',
+                borderTop: '1px dashed var(--border-subtle)',
+                fontWeight: 800,
+                fontSize: '0.95rem'
+              }}>
+                <span style={{ color: 'var(--text-primary)' }}>Total Net Payable</span>
+                <span style={{ color: 'var(--accent-gold)' }}>₹{finalPayable.toFixed(2)}</span>
               </div>
             </div>
 
@@ -723,7 +1105,7 @@ export function PaymentModal({ booking, onClose, onBookingCompleted }) {
                 </>
               ) : (
                 <>
-                  <span>Pay ₹{Number(booking.totalAmount).toFixed(2)} with {paymentMethod}</span>
+                  <span>Pay ₹{Number(finalPayable).toFixed(2)} with {paymentMethod}</span>
                   <ChevronRight size={18} />
                 </>
               )}

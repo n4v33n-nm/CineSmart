@@ -22,6 +22,11 @@ public class BookingDTO {
     private String screenName;
     private LocalDateTime showStartTime;
     private BigDecimal totalAmount;
+    private BigDecimal originalAmount;
+    private BigDecimal discountAmount;
+    private String couponCode;
+    private Integer loyaltyPointsRedeemed;
+    private BigDecimal loyaltyDiscountAmount;
     private BookingStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime confirmedAt;
@@ -55,6 +60,11 @@ public class BookingDTO {
             }
         }
         dto.setTotalAmount(booking.getTotalAmount());
+        dto.setOriginalAmount(booking.getOriginalAmount() != null ? booking.getOriginalAmount() : booking.getTotalAmount());
+        dto.setDiscountAmount(booking.getDiscountAmount());
+        dto.setCouponCode(booking.getCouponCode());
+        dto.setLoyaltyPointsRedeemed(booking.getLoyaltyPointsRedeemed());
+        dto.setLoyaltyDiscountAmount(booking.getLoyaltyDiscountAmount());
         dto.setStatus(booking.getStatus());
         dto.setCreatedAt(booking.getCreatedAt());
         dto.setConfirmedAt(booking.getConfirmedAt());
@@ -197,5 +207,45 @@ public class BookingDTO {
 
     public void setSeats(List<BookingSeatDTO> seats) {
         this.seats = seats;
+    }
+
+    public BigDecimal getOriginalAmount() {
+        return originalAmount;
+    }
+
+    public void setOriginalAmount(BigDecimal originalAmount) {
+        this.originalAmount = originalAmount;
+    }
+
+    public BigDecimal getDiscountAmount() {
+        return discountAmount;
+    }
+
+    public void setDiscountAmount(BigDecimal discountAmount) {
+        this.discountAmount = discountAmount;
+    }
+
+    public String getCouponCode() {
+        return couponCode;
+    }
+
+    public void setCouponCode(String couponCode) {
+        this.couponCode = couponCode;
+    }
+
+    public Integer getLoyaltyPointsRedeemed() {
+        return loyaltyPointsRedeemed;
+    }
+
+    public void setLoyaltyPointsRedeemed(Integer loyaltyPointsRedeemed) {
+        this.loyaltyPointsRedeemed = loyaltyPointsRedeemed;
+    }
+
+    public BigDecimal getLoyaltyDiscountAmount() {
+        return loyaltyDiscountAmount;
+    }
+
+    public void setLoyaltyDiscountAmount(BigDecimal loyaltyDiscountAmount) {
+        this.loyaltyDiscountAmount = loyaltyDiscountAmount;
     }
 }

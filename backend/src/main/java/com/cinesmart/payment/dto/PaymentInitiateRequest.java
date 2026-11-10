@@ -17,6 +17,10 @@ public class PaymentInitiateRequest {
 
     private String failureReason;
 
+    private String couponCode;
+
+    private Integer loyaltyPointsToRedeem;
+
     public PaymentInitiateRequest() {
     }
 
@@ -71,5 +75,21 @@ public class PaymentInitiateRequest {
 
     public void setFailureReason(String failureReason) {
         this.failureReason = failureReason;
+    }
+
+    public String getCouponCode() {
+        return couponCode;
+    }
+
+    public void setCouponCode(String couponCode) {
+        this.couponCode = couponCode;
+    }
+
+    public Integer getLoyaltyPointsToRedeem() {
+        return loyaltyPointsToRedeem;
+    }
+
+    public void setLoyaltyPointsToRedeem(Integer loyaltyPointsToRedeem) {
+        this.loyaltyPointsToRedeem = loyaltyPointsToRedeem;
     }
 }

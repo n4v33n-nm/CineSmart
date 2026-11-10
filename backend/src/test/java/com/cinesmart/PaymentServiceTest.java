@@ -5,6 +5,8 @@ import com.cinesmart.booking.entity.BookingStatus;
 import com.cinesmart.booking.repository.BookingRepository;
 import com.cinesmart.booking.service.BookingService;
 import com.cinesmart.common.exception.BadRequestException;
+import com.cinesmart.coupon.service.CouponService;
+import com.cinesmart.loyalty.service.LoyaltyService;
 import com.cinesmart.payment.dto.*;
 import com.cinesmart.payment.entity.PaymentMethod;
 import com.cinesmart.payment.entity.PaymentStatus;
@@ -49,6 +51,10 @@ class PaymentServiceTest {
     private BookingService bookingService;
     @Mock
     private TicketService ticketService;
+    @Mock
+    private CouponService couponService;
+    @Mock
+    private LoyaltyService loyaltyService;
 
     @InjectMocks
     private PaymentService paymentService;

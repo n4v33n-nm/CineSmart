@@ -13,6 +13,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { MyBookingsPage } from './pages/MyBookingsPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { TicketVerificationPage } from './pages/TicketVerificationPage';
+import { LoyaltyRewardsPage } from './pages/LoyaltyRewardsPage';
 
 export function App() {
   return (
@@ -34,6 +35,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <MyBookingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rewards"
+            element={
+              <ProtectedRoute>
+                <LoyaltyRewardsPage />
               </ProtectedRoute>
             }
           />
