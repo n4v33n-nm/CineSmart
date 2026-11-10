@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react';
+import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
+import { jsPDF } from 'jspdf';
 import { bookingService } from '../services/bookingService';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
@@ -105,6 +106,162 @@ export function MyBookingsPage() {
       alert(`Cancellation failed: ${err.message}`);
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleDownloadPDF = (singleTicket = null) => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const ticketsToPrint = singleTicket ? [singleTicket] : tickets;
+      const booking = selectedBookingForTickets;
+
+      ticketsToPrint.forEach((t, index) => {
+        if (index > 0) {
+          doc.addPage();
+        }
+
+        const movieTitle = t.movieTitle || booking?.movieTitle || 'Movie Ticket';
+        const cinemaName = t.cinemaName || booking?.cinemaName || 'CineSmart Central';
+        const screenName = t.screenName || (booking?.screenName ? booking.screenName : `Screen ${t.screenNumber || 1}`);
+        const sTime = t.showStartTime ? new Date(t.showStartTime) : (booking?.showStartTime ? new Date(booking.showStartTime) : null);
+        const timeStr = sTime ? sTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD';
+        const dateStr = sTime ? sTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD';
+        const seatLabel = t.seatLabel || 'General';
+        const seatTier = t.seatTier || 'STANDARD';
+        const rawPrice = t.seatPrice != null ? t.seatPrice : (t.price != null ? t.price : (booking?.totalAmount ? (booking.totalAmount / (tickets.length || 1)) : 200));
+        const priceStr = `INR ${Number(rawPrice || 0).toFixed(2)}`;
+        const ticketCode = t.ticketCode || 'TKT-CINESMART';
+        const tokenHash = t.qrCodeHash || t.qrVerificationHash || 'SECURE-SHA256-TOKEN';
+
+        // Outer Dark Container
+        doc.setFillColor(15, 23, 42); // slate-900
+        doc.roundedRect(15, 20, 180, 110, 4, 4, 'F');
+
+        // Header Top Bar - CineSmart Red
+        doc.setFillColor(229, 9, 20);
+        doc.roundedRect(15, 20, 180, 14, 4, 4, 'F');
+        doc.rect(15, 26, 180, 8, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('CINESMART DIGITAL CINEMA PASS', 22, 29);
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text('OFFICIAL E-TICKET', 155, 29);
+
+        // Movie Title
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text(movieTitle, 22, 45);
+
+        // Cinema & Screen
+        doc.setTextColor(203, 213, 225); // slate-300
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${cinemaName}  |  ${screenName}`, 22, 53);
+
+        // Date & Showtime
+        doc.setTextColor(6, 182, 212); // cyan-500
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${dateStr}  at  ${timeStr}`, 22, 60);
+
+        // Details Grid Box
+        doc.setFillColor(30, 41, 59); // slate-800
+        doc.roundedRect(22, 66, 110, 38, 2, 2, 'F');
+
+        // Seat & Tier
+        doc.setTextColor(148, 163, 184); // slate-400
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('SEAT & TIER', 26, 73);
+        doc.setTextColor(245, 158, 11); // amber-500
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${seatLabel} (${seatTier})`, 26, 79);
+
+        // Ticket Code
+        doc.setTextColor(148, 163, 184);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('TICKET CODE', 26, 88);
+        doc.setTextColor(6, 182, 212);
+        doc.setFontSize(10);
+        doc.setFont('courier', 'bold');
+        doc.text(ticketCode, 26, 94);
+
+        // Price
+        doc.setTextColor(148, 163, 184);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('PRICE', 80, 73);
+        doc.setTextColor(16, 185, 129); // emerald-500
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(priceStr, 80, 79);
+
+        // Booking Reference
+        doc.setTextColor(148, 163, 184);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('BOOKING REF', 80, 88);
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text(booking?.bookingReference || 'CONFIRMED', 80, 94);
+
+        // QR Code Box on right
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(138, 43, 49, 49, 2, 2, 'F');
+
+        // Capture QR Code from hidden canvas
+        const canvas = document.getElementById(`qr-canvas-${t.ticketCode}`);
+        if (canvas) {
+          try {
+            const qrImgData = canvas.toDataURL('image/png');
+            doc.addImage(qrImgData, 'PNG', 140.5, 45.5, 44, 44);
+          } catch (_) {}
+        }
+
+        doc.setTextColor(100, 116, 139);
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        doc.text('SCAN FOR ENTRY', 148, 97);
+
+        // Footer Token Strip
+        doc.setFillColor(10, 14, 23);
+        doc.rect(15, 116, 180, 14, 'F');
+
+        doc.setTextColor(148, 163, 184);
+        doc.setFontSize(7);
+        doc.setFont('courier', 'normal');
+        doc.text(`SECURITY TOKEN: ${tokenHash.substring(0, 42)}...`, 22, 124);
+        doc.text(`STATUS: ${t.status || 'ACTIVE'}`, 155, 124);
+
+        // Instructions note
+        doc.setTextColor(100, 116, 139);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'italic');
+        doc.text('Please present this digital pass or printed copy at cinema turnstile for QR entry verification.', 22, 140);
+      });
+
+      const filename = singleTicket
+        ? `CineSmart-Ticket-${singleTicket.ticketCode}.pdf`
+        : `CineSmart-Tickets-${booking?.bookingReference || 'passes'}.pdf`;
+
+      doc.save(filename);
+    } catch (err) {
+      console.error('Failed to generate PDF directly:', err);
+      // Fallback to browser print if client-side pdf encounters any issue
+      window.print();
     }
   };
 
@@ -357,15 +514,23 @@ export function MyBookingsPage() {
               borderRadius: 'var(--radius-lg)'
             }}
           >
-            <div className="no-print" style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div className="no-print" style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <button
+                onClick={() => handleDownloadPDF()}
+                className="btn-primary"
+                style={{ padding: '0.45rem 0.95rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}
+                title="Download Tickets as PDF"
+              >
+                <Download size={15} />
+                <span>Download PDF</span>
+              </button>
               <button
                 onClick={() => window.print()}
                 className="btn-secondary"
-                style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                title="Print or Save Tickets as PDF"
+                style={{ padding: '0.45rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                title="Print"
               >
                 <Printer size={15} />
-                <span>Print / PDF</span>
               </button>
               <button
                 onClick={() => setSelectedBookingForTickets(null)}
@@ -556,8 +721,30 @@ export function MyBookingsPage() {
                                 Price
                               </span>
                               <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--accent-green)' }}>
-                                ₹{Number(t.price).toFixed(2)}
+                                ₹{Number(t.seatPrice != null ? t.seatPrice : (t.price != null ? t.price : (selectedBookingForTickets?.totalAmount ? (selectedBookingForTickets.totalAmount / (tickets.length || 1)) : 200))).toFixed(2)}
                               </span>
+                            </div>
+
+                            <div className="no-print">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadPDF(t);
+                                }}
+                                className="btn-secondary"
+                                style={{
+                                  padding: '0.35rem 0.65rem',
+                                  fontSize: '0.75rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  borderRadius: 'var(--radius-sm)'
+                                }}
+                                title="Download this individual ticket as PDF"
+                              >
+                                <Download size={13} />
+                                <span>Download PDF</span>
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -582,6 +769,13 @@ export function MyBookingsPage() {
                             includeMargin={false}
                             bgColor="#ffffff"
                             fgColor="#0f172a"
+                          />
+                          {/* Hidden canvas used to extract QR as image for direct PDF export */}
+                          <QRCodeCanvas
+                            id={`qr-canvas-${t.ticketCode}`}
+                            value={qrPayload}
+                            size={160}
+                            style={{ display: 'none' }}
                           />
                           <span style={{ fontSize: '0.62rem', color: '#64748b', fontWeight: 700, marginTop: '0.35rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                             Scan for Entry
@@ -616,19 +810,28 @@ export function MyBookingsPage() {
               </div>
             )}
 
-            <div className="no-print" style={{ marginTop: '1.75rem', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <div className="no-print" style={{ marginTop: '1.75rem', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => handleDownloadPDF()}
+                className="btn-primary"
+                style={{ padding: '0.65rem 1.4rem', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}
+              >
+                <Download size={18} />
+                <span>Download All Tickets (PDF)</span>
+              </button>
               <button
                 onClick={() => window.print()}
-                className="btn-primary"
-                style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                className="btn-secondary"
+                style={{ padding: '0.65rem 1rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                title="Print Tickets"
               >
                 <Printer size={16} />
-                <span>Print All Tickets (PDF)</span>
+                <span>Print</span>
               </button>
               <button
                 onClick={() => setSelectedBookingForTickets(null)}
                 className="btn-secondary"
-                style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem' }}
+                style={{ padding: '0.65rem 1.25rem', fontSize: '0.9rem' }}
               >
                 Close
               </button>

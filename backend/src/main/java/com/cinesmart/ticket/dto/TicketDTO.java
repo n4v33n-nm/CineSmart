@@ -196,6 +196,14 @@ public class TicketDTO {
         this.seatPrice = seatPrice;
     }
 
+    public BigDecimal getPrice() {
+        return seatPrice != null ? seatPrice : totalAmount;
+    }
+
+    public void setPrice(BigDecimal price) {
+        this.seatPrice = price;
+    }
+
     public BigDecimal getTotalAmount() {
         return totalAmount;
     }

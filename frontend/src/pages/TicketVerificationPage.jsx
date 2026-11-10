@@ -501,7 +501,7 @@ export function TicketVerificationPage() {
                     <div>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>PRICE</span>
                       <strong style={{ color: 'var(--accent-green)' }}>
-                        ₹{Number(verificationResult.ticket.price).toFixed(2)}
+                        ₹{Number(verificationResult.ticket.price || verificationResult.ticket.seatPrice || 0).toFixed(2)}
                       </strong>
                     </div>
                     <div>
