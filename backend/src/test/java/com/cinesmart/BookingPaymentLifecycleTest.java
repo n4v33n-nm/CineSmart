@@ -8,6 +8,8 @@ import com.cinesmart.booking.repository.BookingRepository;
 import com.cinesmart.booking.service.BookingService;
 import com.cinesmart.common.exception.BadRequestException;
 import com.cinesmart.common.exception.ResourceNotFoundException;
+import com.cinesmart.coupon.service.CouponService;
+import com.cinesmart.loyalty.service.LoyaltyService;
 import com.cinesmart.payment.dto.PaymentInitiateRequest;
 import com.cinesmart.payment.gateway.PaymentGateway;
 import com.cinesmart.payment.repository.PaymentTransactionRepository;
@@ -61,6 +63,10 @@ class BookingPaymentLifecycleTest {
     private PaymentTransactionRepository paymentTransactionRepository;
     @Mock
     private PaymentGateway paymentGateway;
+    @Mock
+    private CouponService couponService;
+    @Mock
+    private LoyaltyService loyaltyService;
 
     @InjectMocks
     private BookingService bookingService;

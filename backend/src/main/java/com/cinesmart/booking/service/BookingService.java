@@ -273,10 +273,18 @@ public class BookingService {
 
         // If booking was confirmed, refund payment, void tickets, release coupon, and reverse loyalty points
         if (wasConfirmed) {
-            paymentService.refundBookingPayment(booking, userEmail);
-            ticketService.voidTicketsForBooking(booking);
-            couponService.releaseCouponUsage(booking.getId());
-            loyaltyService.reversePointsForBooking(booking);
+            if (paymentService != null) {
+                paymentService.refundBookingPayment(booking, userEmail);
+            }
+            if (ticketService != null) {
+                ticketService.voidTicketsForBooking(booking);
+            }
+            if (couponService != null) {
+                couponService.releaseCouponUsage(booking.getId());
+            }
+            if (loyaltyService != null) {
+                loyaltyService.reversePointsForBooking(booking);
+            }
         }
 
         // Release seats back to AVAILABLE

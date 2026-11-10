@@ -70,6 +70,9 @@ public class Booking {
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 
+    @Column(name = "cancellation_reason", length = 500)
+    private String cancellationReason;
+
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookingSeat> bookingSeats = new ArrayList<>();
 
@@ -225,5 +228,13 @@ public class Booking {
 
     public void setLoyaltyDiscountAmount(BigDecimal loyaltyDiscountAmount) {
         this.loyaltyDiscountAmount = loyaltyDiscountAmount;
+    }
+
+    public String getCancellationReason() {
+        return cancellationReason;
+    }
+
+    public void setCancellationReason(String cancellationReason) {
+        this.cancellationReason = cancellationReason;
     }
 }
