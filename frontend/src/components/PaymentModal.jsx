@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { paymentService } from '../services/paymentService';
+import { bookingService } from '../services/bookingService';
 import {
   CreditCard,
   Smartphone,
@@ -11,6 +12,7 @@ import {
   ShieldCheck,
   Ticket,
   Lock,
+  Clock,
   RefreshCw,
   X,
   ChevronRight,
@@ -31,6 +33,57 @@ export function PaymentModal({ booking, onClose, onBookingCompleted }) {
   const [upiId, setUpiId] = useState('customer@okhdfcbank');
   const [selectedBank, setSelectedBank] = useState('HDFC Bank');
   const [selectedWallet, setSelectedWallet] = useState('Paytm');
+
+  // Real-Time 5-minute Seat Lock Countdown
+  const [timeLeft, setTimeLeft] = useState(() => {
+    if (booking?.expiresAt) {
+      const diff = Math.floor((new Date(booking.expiresAt).getTime() - Date.now()) / 1000);
+      return diff > 0 ? diff : 300;
+    }
+    return 300; // 5 minutes standard
+  });
+
+  const handleExpire = async () => {
+    try {
+      if (booking?.id && !paymentResult) {
+        await bookingService.cancelBooking(booking.id);
+      }
+    } catch (e) {
+      // Ignored
+    }
+    alert('Your 5-minute seat reservation has expired. Your seats have been released back to availability.');
+    onClose();
+  };
+
+  const handleCancelAndClose = async () => {
+    try {
+      if (booking?.id && !paymentResult) {
+        await bookingService.cancelBooking(booking.id);
+      }
+    } catch (e) {
+      // Ignored
+    }
+    onClose();
+  };
+
+  useEffect(() => {
+    if (paymentResult || loading) return;
+    if (timeLeft <= 0) {
+      handleExpire();
+      return;
+    }
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleExpire();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft, paymentResult, loading]);
 
   const handlePay = async () => {
     try {
@@ -98,7 +151,7 @@ export function PaymentModal({ booking, onClose, onBookingCompleted }) {
         {/* Close Button (Only if not processing and not success) */}
         {!loading && !paymentResult && (
           <button
-            onClick={onClose}
+            onClick={handleCancelAndClose}
             style={{
               position: 'absolute',
               top: '1.25rem',
@@ -324,6 +377,33 @@ export function PaymentModal({ booking, onClose, onBookingCompleted }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
               <Lock size={20} color="var(--accent-red)" />
               <h2 style={{ fontSize: '1.4rem', fontWeight: 800 }}>Complete Your Payment</h2>
+            </div>
+
+            {/* Real-Time 5-Minute Seat Lock Banner */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.65rem 1rem',
+              borderRadius: 'var(--radius-md)',
+              background: timeLeft < 60 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.12)',
+              border: `1px solid ${timeLeft < 60 ? 'var(--accent-red)' : 'var(--accent-gold)'}`,
+              marginBottom: '1.25rem',
+              fontSize: '0.85rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: timeLeft < 60 ? 'var(--accent-red)' : 'var(--accent-gold)', fontWeight: 600 }}>
+                <Clock size={16} />
+                <span>{timeLeft < 60 ? 'Warning: Seats releasing soon!' : 'Seats Temporarily Locked for You (5m)'}</span>
+              </div>
+              <div style={{
+                fontFamily: 'monospace',
+                fontWeight: 800,
+                fontSize: '1.05rem',
+                color: timeLeft < 60 ? 'var(--accent-red)' : 'var(--accent-gold)',
+                letterSpacing: '0.05em'
+              }}>
+                {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+              </div>
             </div>
 
             {/* Order Summary Strip */}

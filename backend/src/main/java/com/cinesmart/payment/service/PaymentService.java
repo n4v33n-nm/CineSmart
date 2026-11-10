@@ -1,17 +1,21 @@
 package com.cinesmart.payment.service;
 
 import com.cinesmart.booking.entity.Booking;
+import com.cinesmart.booking.entity.BookingSeat;
 import com.cinesmart.booking.entity.BookingStatus;
 import com.cinesmart.booking.repository.BookingRepository;
 import com.cinesmart.booking.service.BookingService;
 import com.cinesmart.common.exception.BadRequestException;
 import com.cinesmart.common.exception.ResourceNotFoundException;
+import com.cinesmart.common.exception.SeatUnavailableException;
 import com.cinesmart.payment.dto.*;
 import com.cinesmart.payment.entity.PaymentMethod;
 import com.cinesmart.payment.entity.PaymentStatus;
 import com.cinesmart.payment.entity.PaymentTransaction;
 import com.cinesmart.payment.gateway.*;
 import com.cinesmart.payment.repository.PaymentTransactionRepository;
+import com.cinesmart.show.entity.ShowSeat;
+import com.cinesmart.show.entity.ShowSeatStatus;
 import com.cinesmart.ticket.dto.TicketDTO;
 import com.cinesmart.ticket.service.TicketService;
 import com.cinesmart.user.entity.User;
@@ -108,6 +112,12 @@ public class PaymentService {
         }
         if (booking.getStatus() != BookingStatus.PENDING_PAYMENT) {
             throw new BadRequestException("Booking is not in a payable state (" + booking.getStatus() + ")", "INVALID_BOOKING_STATUS");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        if (booking.getExpiresAt() != null && booking.getExpiresAt().isBefore(now)) {
+            bookingService.handlePaymentFailure(booking.getId(), "Seat lock expired");
+            throw new SeatUnavailableException("Your temporary seat reservation has expired. Please reselect your seats.");
         }
 
         // Idempotency verification: Check if an idempotency key was supplied
@@ -287,6 +297,36 @@ public class PaymentService {
     }
 
     private PaymentResponseDTO processTransactionInternal(PaymentTransaction txn, Boolean simulateSuccess, String failureReason) {
+        LocalDateTime now = LocalDateTime.now();
+        Booking booking = txn.getBooking();
+
+        // Feature 1 Requirement: Validate seat availability again before confirming payment
+        if (booking != null) {
+            if (booking.getExpiresAt() != null && booking.getExpiresAt().isBefore(now)) {
+                txn.markFailed("Seat lock expired before payment was processed");
+                paymentTransactionRepository.save(txn);
+                bookingService.handlePaymentFailure(booking.getId(), "Seat lock expired");
+                throw new SeatUnavailableException("Your temporary seat reservation has expired. Please select your seats again.");
+            }
+
+            for (BookingSeat bs : booking.getBookingSeats()) {
+                ShowSeat seat = bs.getShowSeat();
+                if (seat != null) {
+                    if (seat.getStatus() != ShowSeatStatus.LOCKED && seat.getStatus() != ShowSeatStatus.HELD) {
+                        txn.markFailed("Seat " + bs.getSeatLabel() + " is no longer locked by you");
+                        paymentTransactionRepository.save(txn);
+                        throw new SeatUnavailableException("Seat " + bs.getSeatLabel() + " is no longer available. Please select another seat.");
+                    }
+                    if (seat.isLockExpired(now)) {
+                        txn.markFailed("Seat lock expired for " + bs.getSeatLabel());
+                        paymentTransactionRepository.save(txn);
+                        bookingService.handlePaymentFailure(booking.getId(), "Seat lock expired");
+                        throw new SeatUnavailableException("Seat lock expired for " + bs.getSeatLabel() + ". Please reselect your seats.");
+                    }
+                }
+            }
+        }
+
         txn.markProcessing();
         paymentTransactionRepository.save(txn);
 

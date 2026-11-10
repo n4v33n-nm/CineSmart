@@ -73,6 +73,23 @@ export function SeatSelectionPage() {
 
   useEffect(() => {
     fetchSeatMap();
+
+    // Reliable real-time polling strategy: Auto-refresh seat availability every 6 seconds
+    const interval = setInterval(() => {
+      seatService.getSeatMapForShow(showId)
+        .then((data) => {
+          setSeatMapData(data);
+          setSelectedSeats((prev) =>
+            prev.filter((sel) => {
+              const fresh = data.seats.find((s) => s.showSeatId === sel.showSeatId);
+              return fresh && fresh.status === 'AVAILABLE';
+            })
+          );
+        })
+        .catch(() => {});
+    }, 6000);
+
+    return () => clearInterval(interval);
   }, [showId]);
 
   const handleSeatToggle = (seat) => {
@@ -126,6 +143,13 @@ export function SeatSelectionPage() {
   };
 
   const handleClosePayment = async () => {
+    if (checkoutBooking && checkoutBooking.id) {
+      try {
+        await bookingService.cancelBooking(checkoutBooking.id);
+      } catch (e) {
+        // Ignored
+      }
+    }
     setCheckoutBooking(null);
     setSelectedSeats([]);
     await fetchSeatMap();

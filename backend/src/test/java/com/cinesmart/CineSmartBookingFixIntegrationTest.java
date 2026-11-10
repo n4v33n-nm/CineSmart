@@ -14,6 +14,10 @@ import com.cinesmart.movie.entity.Movie;
 import com.cinesmart.movie.repository.MovieRepository;
 import com.cinesmart.screen.entity.Screen;
 import com.cinesmart.screen.repository.ScreenRepository;
+import com.cinesmart.payment.dto.PaymentInitiateRequest;
+import com.cinesmart.payment.dto.PaymentResponseDTO;
+import com.cinesmart.payment.service.PaymentService;
+import com.cinesmart.seat.dto.SeatLockResponseDTO;
 import com.cinesmart.seat.dto.SeatMapResponseDTO;
 import com.cinesmart.seat.entity.Seat;
 import com.cinesmart.seat.entity.SeatTier;
@@ -79,6 +83,9 @@ public class CineSmartBookingFixIntegrationTest {
 
     @Autowired
     private SeatService seatService;
+
+    @Autowired
+    private PaymentService paymentService;
 
     @Autowired
     private SeatLockCleanupService seatLockCleanupService;
@@ -408,6 +415,67 @@ public class CineSmartBookingFixIntegrationTest {
         // 5. Verify seat 1 returned to AVAILABLE in seat map
         SeatMapResponseDTO seatMapAfterCancel = seatService.getSeatMapForShow(show.getId());
         assertEquals(2, seatMapAfterCancel.getAvailableSeats());
+    }
+
+    @Test
+    @DisplayName("Scenario 11: Dedicated Seat Lock and Release REST Service API")
+    void testDirectSeatLockAndReleaseAPI() {
+        Seat seat = seatRepository.save(new Seat(testScreen, "K", 1, SeatTier.STANDARD, 1, 11));
+        LocalDateTime showTime = LocalDateTime.now().plusDays(11);
+        Show show = showRepository.save(new Show(testMovie, testScreen, showTime, showTime.plusHours(2), BigDecimal.valueOf(175.00)));
+        ShowSeat ss = showSeatRepository.save(new ShowSeat(show, seat, BigDecimal.valueOf(175.00)));
+
+        // 1. Explicitly Lock via SeatService API
+        SeatLockResponseDTO lockResp = seatService.lockSeats(show.getId(), Collections.singletonList(ss.getId()), testUser1.getEmail());
+        assertEquals("LOCKED", lockResp.getStatus());
+        assertNotNull(lockResp.getExpiresAt());
+
+        ShowSeat lockedSeat = showSeatRepository.findById(ss.getId()).orElseThrow();
+        assertEquals(ShowSeatStatus.LOCKED, lockedSeat.getStatus());
+
+        // 2. Competing user cannot lock
+        assertThrows(SeatUnavailableException.class, () ->
+                seatService.lockSeats(show.getId(), Collections.singletonList(ss.getId()), testUser2.getEmail()));
+
+        // 3. User releases the lock
+        SeatLockResponseDTO releaseResp = seatService.releaseSeats(show.getId(), Collections.singletonList(ss.getId()), testUser1.getEmail());
+        assertEquals("AVAILABLE", releaseResp.getStatus());
+
+        ShowSeat releasedSeat = showSeatRepository.findById(ss.getId()).orElseThrow();
+        assertEquals(ShowSeatStatus.AVAILABLE, releasedSeat.getStatus());
+    }
+
+    @Test
+    @DisplayName("Scenario 12: Pre-payment validation rejects payment if seat lock expired during checkout")
+    void testPrePaymentValidationRejectsExpiredLock() {
+        Seat seat = seatRepository.save(new Seat(testScreen, "L", 1, SeatTier.STANDARD, 1, 12));
+        LocalDateTime showTime = LocalDateTime.now().plusDays(12);
+        Show show = showRepository.save(new Show(testMovie, testScreen, showTime, showTime.plusHours(2), BigDecimal.valueOf(190.00)));
+        ShowSeat ss = showSeatRepository.save(new ShowSeat(show, seat, BigDecimal.valueOf(190.00)));
+
+        BookingDTO booking = bookingService.createBooking(testUser1.getEmail(),
+                new BookingCreateRequest(show.getId(), Collections.singletonList(ss.getId())));
+
+        // Fast-forward expiration: set booking and seat expiration to 2 minutes in the past
+        Booking bEntity = bookingRepository.findById(booking.getId()).orElseThrow();
+        bEntity.setExpiresAt(LocalDateTime.now().minusMinutes(2));
+        bookingRepository.save(bEntity);
+
+        ShowSeat sEntity = showSeatRepository.findById(ss.getId()).orElseThrow();
+        sEntity.setLockedUntil(LocalDateTime.now().minusMinutes(2));
+        showSeatRepository.save(sEntity);
+
+        // Payment attempt must be rejected by pre-payment lock validator
+        PaymentInitiateRequest payReq = new PaymentInitiateRequest(
+                booking.getId(),
+                "UPI",
+                "IDEM-EXPIRED-" + System.currentTimeMillis(),
+                true,
+                null
+        );
+
+        assertThrows(SeatUnavailableException.class, () ->
+                paymentService.initiatePayment(testUser1.getEmail(), payReq, true));
     }
 }
 
