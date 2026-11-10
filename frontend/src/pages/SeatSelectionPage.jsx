@@ -37,10 +37,14 @@ export function SeatSelectionPage() {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [checkoutBooking, setCheckoutBooking] = useState(null);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [confirmedBookingData, setConfirmedBookingData] = useState(null);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
 
-  const fetchSeatMap = async () => {
+  const fetchSeatMap = async (showSpinner = false) => {
     try {
-      setLoading(true);
+      if (showSpinner) {
+        setLoading(true);
+      }
       setError(null);
       const data = await seatService.getSeatMapForShow(showId);
       setSeatMapData(data);
@@ -54,12 +58,14 @@ export function SeatSelectionPage() {
     } catch (err) {
       setError(err.message || 'Unable to retrieve seat layout for this show.');
     } finally {
-      setLoading(false);
+      if (showSpinner) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchSeatMap();
+    fetchSeatMap(true);
 
     // Reliable real-time polling strategy: Auto-refresh seat availability every 6 seconds
     const interval = setInterval(() => {
@@ -118,13 +124,14 @@ export function SeatSelectionPage() {
       setBookingLoading(true);
       setError(null);
       setPaymentCompleted(false);
+      setShowSuccessBanner(false);
       const seatIds = selectedSeats.map((s) => s.showSeatId);
       const result = await bookingService.createBooking(showId, seatIds);
       setCheckoutBooking(result);
     } catch (err) {
       setError(err.message || 'Seat reservation failed. Some seats may have already been reserved.');
-      // Refresh seat map to sync availability
-      await fetchSeatMap();
+      // Refresh seat map silently to sync availability
+      await fetchSeatMap(false);
     } finally {
       setBookingLoading(false);
     }
@@ -139,16 +146,21 @@ export function SeatSelectionPage() {
         // Ignored
       }
     }
+    if (paymentCompleted) {
+      setShowSuccessBanner(true);
+    }
     setCheckoutBooking(null);
     setPaymentCompleted(false);
     setSelectedSeats([]);
-    await fetchSeatMap();
+    await fetchSeatMap(false);
   };
 
   const handleBookingCompleted = async (paymentRes) => {
     setPaymentCompleted(true);
+    setConfirmedBookingData(paymentRes);
     setSelectedSeats([]);
-    await fetchSeatMap();
+    // Silently update seat availability so booked seats show as BOOKED without unmounting the modal!
+    await fetchSeatMap(false);
   };
 
   if (loading) {
@@ -209,7 +221,7 @@ export function SeatSelectionPage() {
       {/* Show Header Summary */}
       <div className="glass-panel" style={{
         padding: '1.5rem 2rem',
-        marginBottom: '2.5rem',
+        marginBottom: '2rem',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -237,6 +249,48 @@ export function SeatSelectionPage() {
           </div>
         </div>
       </div>
+
+      {/* Booking Confirmation Reassurance Banner */}
+      {showSuccessBanner && confirmedBookingData && (
+        <div style={{
+          background: 'rgba(16, 185, 129, 0.12)',
+          border: '1px solid var(--accent-green)',
+          borderRadius: 'var(--radius-md)',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '2rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '1rem',
+          boxShadow: '0 4px 20px rgba(16, 185, 129, 0.2)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <CheckCircle size={28} color="var(--accent-green)" />
+            <div>
+              <h4 style={{ margin: 0, color: 'var(--accent-green)', fontWeight: 800, fontSize: '1.05rem' }}>
+                Payment Successful & Booking Confirmed!
+              </h4>
+              <p style={{ margin: '0.2rem 0 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                Booking Ref: <strong style={{ color: 'var(--text-primary)' }}>{confirmedBookingData.bookingReference || 'CONFIRMED'}</strong> &bull; Your seats are permanently booked and disabled for other users.
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <Link to="/bookings" className="btn-primary" style={{ padding: '0.5rem 1.1rem', fontSize: '0.85rem' }}>
+              <span>View My Tickets</span>
+              <ChevronRight size={15} />
+            </Link>
+            <button
+              onClick={() => setShowSuccessBanner(false)}
+              className="btn-secondary"
+              style={{ padding: '0.5rem 0.8rem', fontSize: '0.85rem' }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div style={{ marginBottom: '1.5rem' }}>
