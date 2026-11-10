@@ -73,3 +73,4 @@ ALTER TABLE bookings ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(10, 2) DEF
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(50);
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS loyalty_points_redeemed INT DEFAULT 0;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS loyalty_discount_amount NUMERIC(10, 2) DEFAULT 0.00;
+

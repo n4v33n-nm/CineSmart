@@ -93,3 +93,4 @@ public class CouponUsage {
         this.usedAt = usedAt;
     }
 }
+

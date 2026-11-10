@@ -27,14 +27,14 @@ public class TicketController {
 
     @GetMapping("/booking/{bookingId}")
     public ResponseEntity<ApiResponse<List<TicketDTO>>> getTicketsByBooking(
-            @PathVariable Long bookingId,
+            @PathVariable("bookingId") Long bookingId,
             @AuthenticationPrincipal UserDetails userDetails) {
         List<TicketDTO> tickets = ticketService.getTicketsByBookingId(bookingId, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success("Tickets retrieved successfully", tickets));
     }
 
     @GetMapping("/{ticketCode}")
-    public ResponseEntity<ApiResponse<TicketDTO>> getTicketByCode(@PathVariable String ticketCode) {
+    public ResponseEntity<ApiResponse<TicketDTO>> getTicketByCode(@PathVariable("ticketCode") String ticketCode) {
         TicketDTO ticket = ticketService.getTicketByCode(ticketCode);
         return ResponseEntity.ok(ApiResponse.success(ticket));
     }

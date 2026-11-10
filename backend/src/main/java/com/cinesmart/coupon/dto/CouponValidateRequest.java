@@ -39,3 +39,4 @@ public class CouponValidateRequest {
         this.bookingAmount = bookingAmount;
     }
 }
+

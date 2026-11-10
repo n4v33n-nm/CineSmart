@@ -103,3 +103,4 @@ public class LoyaltyTransaction {
         this.createdAt = createdAt;
     }
 }
+

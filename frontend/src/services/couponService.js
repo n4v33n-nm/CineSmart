@@ -31,3 +31,4 @@ export const couponService = {
     return api.delete(`/admin/coupons/${id}`);
   }
 };
+

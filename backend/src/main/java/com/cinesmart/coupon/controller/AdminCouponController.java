@@ -30,7 +30,7 @@ public class AdminCouponController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<CouponDTO>> getCouponById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<CouponDTO>> getCouponById(@PathVariable("id") Long id) {
         CouponDTO coupon = couponService.getCouponById(id);
         return ResponseEntity.ok(ApiResponse.success(coupon));
     }
@@ -44,21 +44,22 @@ public class AdminCouponController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<CouponDTO>> updateCoupon(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody CouponCreateRequest request) {
         CouponDTO updated = couponService.updateCoupon(id, request);
         return ResponseEntity.ok(ApiResponse.success("Coupon updated successfully", updated));
     }
 
-    @PatchMapping("/{id}/toggle")
-    public ResponseEntity<ApiResponse<CouponDTO>> toggleCouponStatus(@PathVariable Long id) {
+    @RequestMapping(value = "/{id}/toggle", method = {RequestMethod.PUT, RequestMethod.PATCH})
+    public ResponseEntity<ApiResponse<CouponDTO>> toggleCouponStatus(@PathVariable("id") Long id) {
         CouponDTO toggled = couponService.toggleCouponStatus(id);
         return ResponseEntity.ok(ApiResponse.success("Coupon status toggled", toggled));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteCoupon(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteCoupon(@PathVariable("id") Long id) {
         couponService.deleteCoupon(id);
         return ResponseEntity.ok(ApiResponse.success("Coupon deactivated successfully", null));
     }
 }
+

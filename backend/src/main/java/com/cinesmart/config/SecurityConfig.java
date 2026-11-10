@@ -77,10 +77,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/health").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
 
-                // Public browsing for catalog, cinemas, shows, and seats
+                // Public browsing for catalog, cinemas, shows, coupons, and seats
                 .requestMatchers(HttpMethod.GET, "/api/movies/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/cinemas/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/shows/**").permitAll()
+                .requestMatchers("/api/coupons/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/shows/*/group-seating/recommendations").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/shows/*/recommendations").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/recommendations/**").permitAll()

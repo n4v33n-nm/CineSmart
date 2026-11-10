@@ -325,3 +325,4 @@ export function LoyaltyRewardsPage() {
   );
 }
 export default LoyaltyRewardsPage;
+

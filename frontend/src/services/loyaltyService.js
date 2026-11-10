@@ -13,3 +13,4 @@ export const loyaltyService = {
     return api.post('/loyalty/calculate-redemption', { points, currentTotal });
   }
 };
+

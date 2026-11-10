@@ -20,14 +20,14 @@ public class MovieController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<MovieDTO>>> getMovies(
-            @RequestParam(required = false) String genre,
-            @RequestParam(required = false) String search) {
+            @RequestParam(name = "genre", required = false) String genre,
+            @RequestParam(name = "search", required = false) String search) {
         List<MovieDTO> movies = movieService.getActiveMovies(genre, search);
         return ResponseEntity.ok(ApiResponse.success("Movies retrieved successfully", movies));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<MovieDTO>> getMovieById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<MovieDTO>> getMovieById(@PathVariable("id") Long id) {
         MovieDTO movie = movieService.getMovieById(id);
         return ResponseEntity.ok(ApiResponse.success(movie));
     }

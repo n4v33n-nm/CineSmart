@@ -29,13 +29,13 @@ public class CinemaController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<CinemaDTO>> getCinemaById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<CinemaDTO>> getCinemaById(@PathVariable("id") Long id) {
         CinemaDTO cinema = cinemaService.getCinemaById(id);
         return ResponseEntity.ok(ApiResponse.success(cinema));
     }
 
     @GetMapping("/{id}/screens")
-    public ResponseEntity<ApiResponse<List<ScreenDTO>>> getScreensByCinema(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<List<ScreenDTO>>> getScreensByCinema(@PathVariable("id") Long id) {
         List<ScreenDTO> screens = screenService.getScreensByCinema(id);
         return ResponseEntity.ok(ApiResponse.success("Screens retrieved successfully", screens));
     }

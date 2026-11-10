@@ -15,3 +15,4 @@ public interface CouponUsageRepository extends JpaRepository<CouponUsage, Long> 
 
     void deleteByBookingId(Long bookingId);
 }
+

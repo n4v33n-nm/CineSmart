@@ -79,3 +79,4 @@ public class LoyaltyTransactionDTO {
         this.createdAt = createdAt;
     }
 }
+

@@ -31,7 +31,7 @@ public class BookingController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<BookingDTO>> getBookingById(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @AuthenticationPrincipal UserDetails userDetails) {
         BookingDTO booking = bookingService.getBookingById(id, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(booking));
@@ -48,7 +48,7 @@ public class BookingController {
 
     @PostMapping("/{id}/cancel")
     public ResponseEntity<ApiResponse<BookingDTO>> cancelBooking(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @AuthenticationPrincipal UserDetails userDetails) {
         BookingDTO booking = bookingService.cancelBooking(id, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success("Booking cancelled successfully", booking));

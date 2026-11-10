@@ -248,3 +248,4 @@ public class CouponService {
         return couponRepository.findByCodeIgnoreCase(code.trim());
     }
 }
+

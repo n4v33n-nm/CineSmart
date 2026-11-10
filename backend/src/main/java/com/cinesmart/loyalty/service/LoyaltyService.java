@@ -220,3 +220,4 @@ public class LoyaltyService {
         loyaltyAccountRepository.save(account);
     }
 }
+

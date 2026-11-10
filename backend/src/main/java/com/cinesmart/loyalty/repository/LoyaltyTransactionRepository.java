@@ -19,3 +19,4 @@ public interface LoyaltyTransactionRepository extends JpaRepository<LoyaltyTrans
 
     List<LoyaltyTransaction> findByBookingId(Long bookingId);
 }
+

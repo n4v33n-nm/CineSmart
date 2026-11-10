@@ -59,3 +59,4 @@ public class LoyaltyController {
         return ResponseEntity.ok(ApiResponse.success(result.getMessage(), result));
     }
 }
+

@@ -23,14 +23,14 @@ public class SeatController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<SeatMapResponseDTO>> getSeatMapForShow(@PathVariable Long showId) {
+    public ResponseEntity<ApiResponse<SeatMapResponseDTO>> getSeatMapForShow(@PathVariable("showId") Long showId) {
         SeatMapResponseDTO seatMap = seatService.getSeatMapForShow(showId);
         return ResponseEntity.ok(ApiResponse.success("Seat map retrieved successfully", seatMap));
     }
 
     @PostMapping("/lock")
     public ResponseEntity<ApiResponse<SeatLockResponseDTO>> lockSeats(
-            @PathVariable Long showId,
+            @PathVariable("showId") Long showId,
             @Valid @RequestBody SeatLockRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         SeatLockResponseDTO response = seatService.lockSeats(showId, request.getShowSeatIds(), userDetails.getUsername());
@@ -39,7 +39,7 @@ public class SeatController {
 
     @PostMapping("/release")
     public ResponseEntity<ApiResponse<SeatLockResponseDTO>> releaseSeats(
-            @PathVariable Long showId,
+            @PathVariable("showId") Long showId,
             @Valid @RequestBody SeatReleaseRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         SeatLockResponseDTO response = seatService.releaseSeats(showId, request.getShowSeatIds(), userDetails.getUsername());

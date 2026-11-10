@@ -40,3 +40,4 @@ public class LoyaltyRedeemRequest {
         this.currentAmount = currentAmount;
     }
 }
+

@@ -5,3 +5,4 @@ public enum LoyaltyTransactionType {
     REDEEMED,
     REVERSED
 }
+

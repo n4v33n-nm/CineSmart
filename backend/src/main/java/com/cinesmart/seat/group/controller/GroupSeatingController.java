@@ -22,7 +22,7 @@ public class GroupSeatingController {
      */
     @PostMapping("/api/shows/{showId}/group-seating/recommendations")
     public ResponseEntity<ApiResponse<GroupSeatingResponseDTO>> getGroupSeatingRecommendations(
-            @PathVariable Long showId,
+            @PathVariable("showId") Long showId,
             @Valid @RequestBody GroupSeatingRequest request) {
         request.setShowId(showId);
         GroupSeatingResponseDTO response = groupSeatingService.getRecommendations(request);
@@ -34,7 +34,7 @@ public class GroupSeatingController {
      */
     @PostMapping("/api/shows/{showId}/recommendations")
     public ResponseEntity<ApiResponse<GroupSeatingResponseDTO>> getRecommendationsAlias(
-            @PathVariable Long showId,
+            @PathVariable("showId") Long showId,
             @Valid @RequestBody GroupSeatingRequest request) {
         request.setShowId(showId);
         GroupSeatingResponseDTO response = groupSeatingService.getRecommendations(request);

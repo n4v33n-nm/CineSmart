@@ -60,7 +60,7 @@ public class PaymentController {
      */
     @PostMapping("/{id}/process")
     public ResponseEntity<ApiResponse<PaymentResponseDTO>> processPayment(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestBody(required = false) PaymentProcessRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         PaymentResponseDTO response = paymentService.processPayment(id, userDetails.getUsername(), request);
@@ -72,7 +72,7 @@ public class PaymentController {
      */
     @PostMapping("/{id}/cancel")
     public ResponseEntity<ApiResponse<PaymentResponseDTO>> cancelPayment(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @AuthenticationPrincipal UserDetails userDetails) {
         PaymentResponseDTO response = paymentService.cancelPayment(id, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success("Payment transaction cancelled", response));
@@ -83,7 +83,7 @@ public class PaymentController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PaymentResponseDTO>> getPaymentById(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @AuthenticationPrincipal UserDetails userDetails) {
         PaymentResponseDTO response = paymentService.getPaymentById(id, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -94,7 +94,7 @@ public class PaymentController {
      */
     @GetMapping("/booking/{bookingId}")
     public ResponseEntity<ApiResponse<List<PaymentResponseDTO>>> getPaymentsForBooking(
-            @PathVariable Long bookingId,
+            @PathVariable("bookingId") Long bookingId,
             @AuthenticationPrincipal UserDetails userDetails) {
         List<PaymentResponseDTO> payments = paymentService.getPaymentsForBooking(bookingId, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success("Booking payments retrieved successfully", payments));
@@ -105,7 +105,7 @@ public class PaymentController {
      */
     @PostMapping("/{id}/refund")
     public ResponseEntity<ApiResponse<RefundResponseDTO>> refundPayment(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestBody(required = false) RefundRequestDTO request,
             @AuthenticationPrincipal UserDetails userDetails) {
         RefundResponseDTO response = paymentService.refundPayment(id, userDetails.getUsername(), request);

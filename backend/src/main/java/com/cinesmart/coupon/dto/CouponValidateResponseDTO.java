@@ -116,3 +116,4 @@ public class CouponValidateResponseDTO {
         this.message = message;
     }
 }
+

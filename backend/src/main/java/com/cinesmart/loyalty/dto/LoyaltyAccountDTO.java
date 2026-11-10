@@ -99,3 +99,4 @@ public class LoyaltyAccountDTO {
         this.redemptionRateDescription = redemptionRateDescription;
     }
 }
+

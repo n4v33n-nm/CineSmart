@@ -40,14 +40,14 @@ public class AdminController {
 
     @PutMapping("/movies/{id}")
     public ResponseEntity<ApiResponse<MovieDTO>> updateMovie(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody MovieCreateRequest request) {
         MovieDTO movie = movieService.updateMovie(id, request);
         return ResponseEntity.ok(ApiResponse.success("Movie updated successfully", movie));
     }
 
     @DeleteMapping("/movies/{id}")
-    public ResponseEntity<ApiResponse<Void>> deactivateMovie(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deactivateMovie(@PathVariable("id") Long id) {
         movieService.deactivateMovie(id);
         return ResponseEntity.ok(ApiResponse.success("Movie deactivated successfully", null));
     }
@@ -60,7 +60,7 @@ public class AdminController {
     }
 
     @PutMapping("/shows/{id}/cancel")
-    public ResponseEntity<ApiResponse<ShowDTO>> cancelShow(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ShowDTO>> cancelShow(@PathVariable("id") Long id) {
         ShowDTO show = showService.cancelShow(id);
         return ResponseEntity.ok(ApiResponse.success("Show cancelled successfully", show));
     }
