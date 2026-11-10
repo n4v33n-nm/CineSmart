@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import { bookingService } from '../services/bookingService';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
@@ -19,7 +20,11 @@ import {
   QrCode,
   Ban,
   CreditCard,
-  CheckCircle
+  CheckCircle,
+  CheckCircle2,
+  Printer,
+  Download,
+  Sparkles
 } from 'lucide-react';
 
 export function MyBookingsPage() {
@@ -323,116 +328,307 @@ export function MyBookingsPage() {
 
       {/* Ticket Viewer Modal */}
       {selectedBookingForTickets && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '1.5rem'
-        }}>
-          <div className="glass-panel" style={{
-            maxWidth: '560px',
-            width: '100%',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            padding: '2rem',
-            position: 'relative'
-          }}>
-            <button
-              onClick={() => setSelectedBookingForTickets(null)}
-              style={{
-                position: 'absolute',
-                top: '1.25rem',
-                right: '1.25rem',
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-muted)',
-                cursor: 'pointer'
-              }}
-            >
-              <X size={20} />
-            </button>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-              <Ticket size={24} color="var(--accent-red)" />
-              <h2 style={{ fontSize: '1.4rem', fontWeight: 800 }}>Digital Tickets</h2>
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1.5rem'
+          }}
+        >
+          <div
+            className="glass-panel print-only-container"
+            style={{
+              maxWidth: '680px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '2rem',
+              position: 'relative',
+              borderRadius: 'var(--radius-lg)'
+            }}
+          >
+            <div className="no-print" style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <button
+                onClick={() => window.print()}
+                className="btn-secondary"
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                title="Print or Save Tickets as PDF"
+              >
+                <Printer size={15} />
+                <span>Print / PDF</span>
+              </button>
+              <button
+                onClick={() => setSelectedBookingForTickets(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '0.25rem'
+                }}
+                title="Close"
+              >
+                <X size={22} />
+              </button>
             </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+              <Ticket size={26} color="var(--accent-red)" />
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Digital Cinema E-Tickets</h2>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.75rem' }}>
               Booking: <strong style={{ color: 'var(--accent-gold)' }}>{selectedBookingForTickets.bookingReference}</strong> &bull; {selectedBookingForTickets.movieTitle}
             </p>
 
             {ticketsLoading ? (
-              <LoadingSpinner message="Loading ticket details & QR tokens..." />
+              <LoadingSpinner message="Loading authenticated digital tickets & cryptographic QR passes..." />
             ) : ticketsError ? (
               <ErrorMessage message={ticketsError} />
             ) : tickets.length === 0 ? (
-              <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No tickets found for this reservation.</p>
+              <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem 0' }}>No tickets found for this reservation.</p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {tickets.map((t) => (
-                  <div
-                    key={t.id || t.ticketCode}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '1rem 1.25rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.6rem'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-gold)' }}>
-                        {t.ticketCode}
-                      </span>
-                      <span className="badge badge-green" style={{ fontSize: '0.75rem' }}>
-                        {t.status || 'ACTIVE'}
-                      </span>
-                    </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {tickets.map((t) => {
+                  const sTime = t.showStartTime ? new Date(t.showStartTime) : (selectedBookingForTickets.showStartTime ? new Date(selectedBookingForTickets.showStartTime) : null);
+                  const timeStr = sTime ? sTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD';
+                  const dateStr = sTime ? sTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD';
+                  const poster = t.posterUrl || selectedBookingForTickets.posterUrl;
+                  const isUsed = t.status === 'USED';
+                  const isCancelled = t.status === 'CANCELLED' || t.status === 'VOIDED';
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'block' }}>Seat</span>
-                        <strong style={{ color: 'var(--text-primary)' }}>{t.seatLabel} ({t.seatTier})</strong>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'block' }}>Ticket Price</span>
-                        <strong style={{ color: 'var(--accent-green)' }}>₹{Number(t.price).toFixed(2)}</strong>
-                      </div>
-                    </div>
+                  const qrPayload = JSON.stringify({
+                    ticketCode: t.ticketCode,
+                    hash: t.qrCodeHash
+                  });
 
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      background: 'rgba(0,0,0,0.3)',
-                      padding: '0.4rem 0.6rem',
-                      borderRadius: '4px',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-muted)',
-                      wordBreak: 'break-all'
-                    }}>
-                      <QrCode size={16} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />
-                      <span><strong>QR Hash:</strong> {t.qrCodeHash || 'SHA256-VERIFIED-PASS'}</span>
+                  return (
+                    <div
+                      key={t.id || t.ticketCode}
+                      className="ticket-print-card"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(18, 24, 38, 0.95), rgba(10, 14, 23, 0.98))',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-md)',
+                        overflow: 'hidden',
+                        boxShadow: 'var(--shadow-md)',
+                        position: 'relative'
+                      }}
+                    >
+                      {/* Ticket Header Bar */}
+                      <div
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.04)',
+                          padding: '0.75rem 1.25rem',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          borderBottom: '1px solid var(--border-subtle)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Film size={16} color="var(--accent-red)" />
+                          <span style={{ fontSize: '0.8rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                            CineSmart E-Pass
+                          </span>
+                        </div>
+                        <div>
+                          {isUsed ? (
+                            <span className="badge badge-gold" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem' }}>
+                              <CheckCircle2 size={12} />
+                              Admitted
+                            </span>
+                          ) : isCancelled ? (
+                            <span className="badge badge-red" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem' }}>
+                              <Ban size={12} />
+                              {t.status}
+                            </span>
+                          ) : (
+                            <span className="badge badge-emerald" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem' }}>
+                              <ShieldCheck size={12} />
+                              Active Pass
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Ticket Main Content */}
+                      <div
+                        style={{
+                          padding: '1.25rem',
+                          display: 'grid',
+                          gridTemplateColumns: '1fr auto',
+                          gap: '1.25rem',
+                          alignItems: 'center'
+                        }}
+                      >
+                        {/* Left Details */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                          <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                            {poster ? (
+                              <img
+                                src={poster}
+                                alt={t.movieTitle || selectedBookingForTickets.movieTitle}
+                                style={{
+                                  width: '65px',
+                                  height: '92px',
+                                  objectFit: 'cover',
+                                  borderRadius: 'var(--radius-sm)',
+                                  border: '1px solid var(--border-subtle)',
+                                  flexShrink: 0
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: '65px',
+                                  height: '92px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  background: 'rgba(255, 255, 255, 0.05)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0
+                                }}
+                              >
+                                <Film size={28} color="var(--accent-red)" />
+                              </div>
+                            )}
+
+                            <div>
+                              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+                                {t.movieTitle || selectedBookingForTickets.movieTitle}
+                              </h3>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                                <MapPin size={13} color="var(--accent-red)" style={{ flexShrink: 0 }} />
+                                <span>{t.cinemaName || selectedBookingForTickets.cinemaName} &bull; {t.screenName || `Screen ${t.screenNumber || 1}`}</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                                <Calendar size={13} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />
+                                <span>{dateStr} &bull; {timeStr}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Seat & Price Strip */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              background: 'rgba(255, 255, 255, 0.03)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: 'var(--radius-sm)',
+                              padding: '0.5rem 0.85rem',
+                              flexWrap: 'wrap',
+                              gap: '0.5rem'
+                            }}
+                          >
+                            <div>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>
+                                Seat & Tier
+                              </span>
+                              <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--accent-gold)' }}>
+                                {t.seatLabel} <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>({t.seatTier})</span>
+                              </span>
+                            </div>
+
+                            <div>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>
+                                Ticket Code
+                              </span>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 800, fontFamily: 'monospace', color: 'var(--accent-cyan)' }}>
+                                {t.ticketCode}
+                              </span>
+                            </div>
+
+                            <div>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>
+                                Price
+                              </span>
+                              <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--accent-green)' }}>
+                                ₹{Number(t.price).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right QR Box */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: '#ffffff',
+                            padding: '0.6rem',
+                            borderRadius: 'var(--radius-sm)',
+                            textAlign: 'center'
+                          }}
+                        >
+                          <QRCodeSVG
+                            value={qrPayload}
+                            size={120}
+                            level="H"
+                            includeMargin={false}
+                            bgColor="#ffffff"
+                            fgColor="#0f172a"
+                          />
+                          <span style={{ fontSize: '0.62rem', color: '#64748b', fontWeight: 700, marginTop: '0.35rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                            Scan for Entry
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Footer Hash Bar */}
+                      <div
+                        style={{
+                          background: 'rgba(0, 0, 0, 0.4)',
+                          padding: '0.4rem 1.25rem',
+                          borderTop: '1px solid var(--border-subtle)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: '0.68rem',
+                          color: 'var(--text-muted)',
+                          fontFamily: 'monospace'
+                        }}
+                      >
+                        <span>TOKEN: {t.qrCodeHash ? t.qrCodeHash.substring(0, 24) + '...' : 'SECURE-SHA256-TOKEN'}</span>
+                        {t.validatedAt && (
+                          <span style={{ color: 'var(--accent-gold)' }}>
+                            Validated: {new Date(t.validatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
-            <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+            <div className="no-print" style={{ marginTop: '1.75rem', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => window.print()}
+                className="btn-primary"
+                style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <Printer size={16} />
+                <span>Print All Tickets (PDF)</span>
+              </button>
               <button
                 onClick={() => setSelectedBookingForTickets(null)}
                 className="btn-secondary"
-                style={{ width: '100%', justifyContent: 'center' }}
+                style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem' }}
               >
                 Close
               </button>

@@ -12,6 +12,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { MyBookingsPage } from './pages/MyBookingsPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { TicketVerificationPage } from './pages/TicketVerificationPage';
 
 export function App() {
   return (
@@ -43,6 +44,16 @@ export function App() {
             element={
               <ProtectedRoute adminOnly>
                 <AdminDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected Staff & Admin Ticket Verification */}
+          <Route
+            path="/verify-tickets"
+            element={
+              <ProtectedRoute staffOrAdminOnly>
+                <TicketVerificationPage />
               </ProtectedRoute>
             }
           />

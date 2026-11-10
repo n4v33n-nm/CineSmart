@@ -3,8 +3,8 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LoadingSpinner } from './LoadingSpinner';
 
-export function ProtectedRoute({ children, adminOnly = false }) {
-  const { user, loading, isAdmin } = useAuth();
+export function ProtectedRoute({ children, adminOnly = false, staffOrAdminOnly = false }) {
+  const { user, loading, isAdmin, isStaff } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -16,6 +16,10 @@ export function ProtectedRoute({ children, adminOnly = false }) {
   }
 
   if (adminOnly && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (staffOrAdminOnly && !(isAdmin || isStaff)) {
     return <Navigate to="/" replace />;
   }
 

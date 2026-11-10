@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { adminService } from '../services/adminService';
 import { movieService } from '../services/movieService';
 import { showService } from '../services/showService';
@@ -16,7 +17,8 @@ import {
   Clock,
   IndianRupee,
   Tv,
-  MapPin
+  MapPin,
+  QrCode
 } from 'lucide-react';
 
 export function AdminDashboardPage() {
@@ -218,6 +220,22 @@ export function AdminDashboardPage() {
             <Tv size={15} />
             <span>Cinemas & Screens</span>
           </button>
+          <Link
+            to="/verify-tickets"
+            className="btn-secondary"
+            style={{
+              padding: '0.5rem 1rem',
+              fontSize: '0.85rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              borderColor: 'rgba(6, 182, 212, 0.4)',
+              color: 'var(--accent-cyan)'
+            }}
+          >
+            <QrCode size={15} />
+            <span>Gate Ticket Scanner</span>
+          </Link>
         </div>
       </div>
 

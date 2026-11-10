@@ -15,8 +15,10 @@ public class TicketDTO {
     private String qrVerificationHash;
     private TicketStatus status;
     private String movieTitle;
+    private String posterUrl;
     private String cinemaName;
     private String screenName;
+    private Integer screenNumber;
     private LocalDateTime showStartTime;
     private String seatLabel;
     private String seatTier;
@@ -27,6 +29,8 @@ public class TicketDTO {
     private String customerName;
     private String customerEmail;
     private LocalDateTime issuedAt;
+    private LocalDateTime validatedAt;
+    private String validatedBy;
 
     public TicketDTO() {
     }
@@ -39,6 +43,10 @@ public class TicketDTO {
         dto.setQrVerificationHash(ticket.getQrVerificationHash());
         dto.setStatus(ticket.getStatus());
         dto.setIssuedAt(ticket.getIssuedAt());
+        dto.setValidatedAt(ticket.getValidatedAt());
+        if (ticket.getValidatedBy() != null) {
+            dto.setValidatedBy(ticket.getValidatedBy().getFullName());
+        }
 
         if (ticket.getBooking() != null) {
             dto.setBookingId(ticket.getBooking().getId());
@@ -55,8 +63,10 @@ public class TicketDTO {
                 dto.setShowStartTime(ticket.getBooking().getShow().getStartTime());
                 if (ticket.getBooking().getShow().getMovie() != null) {
                     dto.setMovieTitle(ticket.getBooking().getShow().getMovie().getTitle());
+                    dto.setPosterUrl(ticket.getBooking().getShow().getMovie().getPosterUrl());
                 }
                 if (ticket.getBooking().getShow().getScreen() != null) {
+                    dto.setScreenNumber(ticket.getBooking().getShow().getScreen().getScreenNumber());
                     dto.setScreenName("Screen " + ticket.getBooking().getShow().getScreen().getScreenNumber());
                     if (ticket.getBooking().getShow().getScreen().getCinema() != null) {
                         dto.setCinemaName(ticket.getBooking().getShow().getScreen().getCinema().getName());
@@ -110,8 +120,16 @@ public class TicketDTO {
         return qrVerificationHash;
     }
 
+    public String getQrCodeHash() {
+        return qrVerificationHash;
+    }
+
     public void setQrVerificationHash(String qrVerificationHash) {
         this.qrVerificationHash = qrVerificationHash;
+    }
+
+    public void setQrCodeHash(String qrCodeHash) {
+        this.qrVerificationHash = qrCodeHash;
     }
 
     public TicketStatus getStatus() {
@@ -224,5 +242,37 @@ public class TicketDTO {
 
     public void setIssuedAt(LocalDateTime issuedAt) {
         this.issuedAt = issuedAt;
+    }
+
+    public String getPosterUrl() {
+        return posterUrl;
+    }
+
+    public void setPosterUrl(String posterUrl) {
+        this.posterUrl = posterUrl;
+    }
+
+    public Integer getScreenNumber() {
+        return screenNumber;
+    }
+
+    public void setScreenNumber(Integer screenNumber) {
+        this.screenNumber = screenNumber;
+    }
+
+    public LocalDateTime getValidatedAt() {
+        return validatedAt;
+    }
+
+    public void setValidatedAt(LocalDateTime validatedAt) {
+        this.validatedAt = validatedAt;
+    }
+
+    public String getValidatedBy() {
+        return validatedBy;
+    }
+
+    public void setValidatedBy(String validatedBy) {
+        this.validatedBy = validatedBy;
     }
 }

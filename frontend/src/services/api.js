@@ -115,7 +115,53 @@ function handleMockRequest(endpoint, options = {}) {
     return { data: MOCK_USER };
   }
 
-  // 7. Admin fallbacks
+  // 7. Tickets
+  if (path === '/tickets/stats' && method === 'GET') {
+    return {
+      data: {
+        totalGenerated: 42,
+        verifiedTickets: 18,
+        unusedTickets: 24,
+        invalidAttempts: 2,
+        recentVerifications: [
+          {
+            id: 1,
+            ticketCode: 'TKT-2026-DEMO01',
+            verifiedBy: 'Staff Operator',
+            result: 'SUCCESS',
+            failureReason: 'Valid entry granted',
+            attemptedAt: new Date().toISOString()
+          }
+        ]
+      }
+    };
+  }
+  if (path === '/tickets/verify' && method === 'POST') {
+    const code = body.ticketCode || 'TKT-2026-DEMO01';
+    return {
+      data: {
+        valid: true,
+        ticketCode: code,
+        status: 'VERIFIED_SUCCESSFULLY',
+        message: 'Entry granted. Ticket successfully verified.',
+        verifiedAt: new Date().toISOString(),
+        verifiedBy: 'Staff Operator',
+        ticket: {
+          ticketCode: code,
+          movieTitle: 'Interstellar Odyssey',
+          cinemaName: 'CineSmart Central',
+          screenName: 'Screen 1 (IMAX 3D)',
+          showStartTime: '2026-11-03T18:45:00',
+          seatLabel: 'D4',
+          seatTier: 'PREMIUM',
+          price: 350.00,
+          status: 'USED'
+        }
+      }
+    };
+  }
+
+  // 8. Admin fallbacks
   if (path.startsWith('/admin/')) {
     return { data: { success: true, message: 'Admin operation recorded' } };
   }

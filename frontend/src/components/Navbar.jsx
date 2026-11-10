@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Film, User, LogOut, ShieldCheck, Ticket, LogIn } from 'lucide-react';
+import { Film, User, LogOut, ShieldCheck, Ticket, LogIn, QrCode } from 'lucide-react';
 
 export function Navbar() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isStaff } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -35,6 +35,13 @@ export function Navbar() {
                 <Ticket size={17} />
                 <span>My Bookings</span>
               </Link>
+
+              {(isAdmin || isStaff) && (
+                <Link to="/verify-tickets" className="badge badge-cyan" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.65rem' }}>
+                  <QrCode size={14} />
+                  <span>Verify Tickets</span>
+                </Link>
+              )}
 
               {isAdmin && (
                 <Link to="/admin" className="badge badge-gold" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.65rem' }}>

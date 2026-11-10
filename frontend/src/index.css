@@ -220,3 +220,47 @@ button {
     padding: 1rem;
   }
 }
+
+/* Print Styles for Digital E-Tickets and Verification Reports */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    background-image: none !important;
+  }
+
+  header, footer, nav, .no-print, button, .modal-backdrop {
+    display: none !important;
+  }
+
+  .print-only-container {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 800px !important;
+    margin: 0 auto !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .ticket-print-card {
+    background: #ffffff !important;
+    border: 2px dashed #94a3b8 !important;
+    color: #111827 !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 2rem !important;
+    box-shadow: none !important;
+  }
+
+  .ticket-print-card * {
+    color: #111827 !important;
+  }
+
+  .ticket-print-card .badge {
+    border: 1px solid #111827 !important;
+    background: #f1f5f9 !important;
+    color: #111827 !important;
+  }
+}

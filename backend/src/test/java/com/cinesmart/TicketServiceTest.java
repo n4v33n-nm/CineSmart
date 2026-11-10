@@ -12,10 +12,15 @@ import com.cinesmart.seat.entity.SeatTier;
 import com.cinesmart.show.entity.Show;
 import com.cinesmart.show.entity.ShowSeat;
 import com.cinesmart.ticket.dto.TicketDTO;
+import com.cinesmart.ticket.dto.TicketStatsDTO;
+import com.cinesmart.ticket.dto.TicketVerificationResponseDTO;
 import com.cinesmart.ticket.entity.Ticket;
 import com.cinesmart.ticket.entity.TicketStatus;
 import com.cinesmart.ticket.repository.TicketRepository;
+import com.cinesmart.ticket.repository.TicketVerificationLogRepository;
 import com.cinesmart.ticket.service.TicketService;
+import com.cinesmart.common.exception.BadRequestException;
+import com.cinesmart.common.exception.ResourceNotFoundException;
 import com.cinesmart.user.entity.User;
 import com.cinesmart.user.entity.UserRole;
 import com.cinesmart.user.repository.UserRepository;
@@ -39,13 +44,15 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("TicketService Comprehensive Unit Tests (Scenarios 17-20)")
+@DisplayName("TicketService Comprehensive Unit Tests (Scenarios 17-20 + Verification)")
 class TicketServiceTest {
 
     @Mock
     private TicketRepository ticketRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private TicketVerificationLogRepository ticketVerificationLogRepository;
 
     @InjectMocks
     private TicketService ticketService;
@@ -158,5 +165,107 @@ class TicketServiceTest {
         assertEquals(1, tickets.size());
         assertEquals("TKT-EXISTING", tickets.get(0).getTicketCode());
         verify(ticketRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("Verification: Valid ticket is atomically verified and marked as USED")
+    void testVerifyTicketSuccessful() {
+        User staff = new User("staff@cinema.com", "pass", "Staff Member", "+999", UserRole.ROLE_STAFF);
+        Ticket ticket = new Ticket(testBooking, seatLine1, "TKT-2026-TEST01", "VALID-HASH-XYZ");
+
+        when(userRepository.findByEmail("staff@cinema.com")).thenReturn(Optional.of(staff));
+        when(ticketRepository.findByTicketCodeWithLock("TKT-2026-TEST01")).thenReturn(Optional.of(ticket));
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TicketVerificationResponseDTO response = ticketService.verifyTicket("TKT-2026-TEST01", "VALID-HASH-XYZ", "staff@cinema.com");
+
+        assertTrue(response.isValid());
+        assertEquals("VERIFIED_SUCCESSFULLY", response.getStatus());
+        assertEquals(TicketStatus.USED, ticket.getStatus());
+        assertEquals(staff, ticket.getValidatedBy());
+        assertNotNull(ticket.getValidatedAt());
+        verify(ticketVerificationLogRepository, times(1)).save(any());
+    }
+
+    @Test
+    @DisplayName("Verification: Already used ticket is rejected with TICKET_ALREADY_USED")
+    void testVerifyTicketAlreadyUsed() {
+        User staff = new User("staff@cinema.com", "pass", "Staff Member", "+999", UserRole.ROLE_STAFF);
+        Ticket ticket = new Ticket(testBooking, seatLine1, "TKT-2026-TEST02", "HASH-XYZ");
+        ticket.setStatus(TicketStatus.USED);
+        ticket.setValidatedAt(LocalDateTime.now().minusHours(1));
+        ticket.setValidatedBy(staff);
+
+        when(userRepository.findByEmail("staff@cinema.com")).thenReturn(Optional.of(staff));
+        when(ticketRepository.findByTicketCodeWithLock("TKT-2026-TEST02")).thenReturn(Optional.of(ticket));
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () ->
+                ticketService.verifyTicket("TKT-2026-TEST02", "HASH-XYZ", "staff@cinema.com"));
+
+        assertEquals("TICKET_ALREADY_USED", ex.getErrorCode());
+        verify(ticketRepository, never()).save(any());
+        verify(ticketVerificationLogRepository, times(1)).save(any());
+    }
+
+    @Test
+    @DisplayName("Verification: Tampered or mismatching QR hash is rejected with INVALID_QR_TOKEN")
+    void testVerifyTicketInvalidHash() {
+        User staff = new User("staff@cinema.com", "pass", "Staff Member", "+999", UserRole.ROLE_STAFF);
+        Ticket ticket = new Ticket(testBooking, seatLine1, "TKT-2026-TEST03", "LEGITIMATE-HASH");
+
+        when(userRepository.findByEmail("staff@cinema.com")).thenReturn(Optional.of(staff));
+        when(ticketRepository.findByTicketCodeWithLock("TKT-2026-TEST03")).thenReturn(Optional.of(ticket));
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () ->
+                ticketService.verifyTicket("TKT-2026-TEST03", "TAMPERED-FORGED-HASH", "staff@cinema.com"));
+
+        assertEquals("TAMPERED_QR_CODE", ex.getErrorCode());
+        verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Verification: Cancelled ticket is rejected with TICKET_CANCELLED")
+    void testVerifyTicketCancelled() {
+        User staff = new User("staff@cinema.com", "pass", "Staff Member", "+999", UserRole.ROLE_STAFF);
+        Ticket ticket = new Ticket(testBooking, seatLine1, "TKT-2026-TEST04", "HASH-XYZ");
+        ticket.setStatus(TicketStatus.CANCELLED);
+
+        when(userRepository.findByEmail("staff@cinema.com")).thenReturn(Optional.of(staff));
+        when(ticketRepository.findByTicketCodeWithLock("TKT-2026-TEST04")).thenReturn(Optional.of(ticket));
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () ->
+                ticketService.verifyTicket("TKT-2026-TEST04", "HASH-XYZ", "staff@cinema.com"));
+
+        assertEquals("TICKET_CANCELLED", ex.getErrorCode());
+        verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Verification: Ticket not found throws ResourceNotFoundException")
+    void testVerifyTicketNotFound() {
+        User staff = new User("staff@cinema.com", "pass", "Staff Member", "+999", UserRole.ROLE_STAFF);
+        when(userRepository.findByEmail("staff@cinema.com")).thenReturn(Optional.of(staff));
+        when(ticketRepository.findByTicketCodeWithLock("TKT-INVALID")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () ->
+                ticketService.verifyTicket("TKT-INVALID", null, "staff@cinema.com"));
+    }
+
+    @Test
+    @DisplayName("Statistics: Correctly aggregates total, verified, unused, and invalid attempts")
+    void testGetTicketStats() {
+        when(ticketRepository.count()).thenReturn(50L);
+        when(ticketRepository.countByStatus(TicketStatus.USED)).thenReturn(20L);
+        when(ticketRepository.countByStatus(TicketStatus.ISSUED)).thenReturn(30L);
+        when(ticketVerificationLogRepository.countByResultNot("SUCCESS")).thenReturn(4L);
+        when(ticketVerificationLogRepository.findTop20ByOrderByAttemptedAtDesc()).thenReturn(Collections.emptyList());
+
+        TicketStatsDTO stats = ticketService.getTicketStats();
+
+        assertEquals(50L, stats.getTotalGenerated());
+        assertEquals(20L, stats.getVerifiedTickets());
+        assertEquals(30L, stats.getUnusedTickets());
+        assertEquals(4L, stats.getInvalidAttempts());
+        assertNotNull(stats.getRecentVerifications());
     }
 }
