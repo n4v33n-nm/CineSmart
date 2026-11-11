@@ -32,3 +32,4 @@ public class BookingCancellationRequest {
         this.simulateAutoProcess = simulateAutoProcess;
     }
 }
+

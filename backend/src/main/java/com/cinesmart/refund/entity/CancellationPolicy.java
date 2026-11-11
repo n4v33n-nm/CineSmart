@@ -182,3 +182,4 @@ public class CancellationPolicy {
         this.updatedAt = updatedAt;
     }
 }
+

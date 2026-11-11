@@ -20,3 +20,4 @@ public interface CancellationPolicyRepository extends JpaRepository<Cancellation
     @Query("SELECT p FROM CancellationPolicy p WHERE p.isActive = true ORDER BY p.minHoursBeforeShow DESC")
     List<CancellationPolicy> findActivePoliciesForEvaluation();
 }
+

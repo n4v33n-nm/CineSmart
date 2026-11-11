@@ -34,3 +34,4 @@ public interface RefundRequestRepository extends JpaRepository<RefundRequest, Lo
     @Query("SELECT COALESCE(SUM(r.cancellationFee), 0) FROM RefundRequest r WHERE r.status = :status")
     BigDecimal sumCancellationFeeByStatus(@Param("status") RefundStatus status);
 }
+

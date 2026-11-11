@@ -105,3 +105,4 @@ public class RefundStatsDTO {
         this.totalCancellationFeesRetained = totalCancellationFeesRetained;
     }
 }
+

@@ -63,3 +63,4 @@ VALUES
     ('Standard Window (6h - 24h)', '75% refund with 25% cancellation charge between 6 and 24 hours before showtime', 6, 24, 75.00, 25.00, TRUE, 2),
     ('Last-Minute Cancellation (<6h)', 'No refund (100% cancellation charge) within 6 hours of showtime', 0, 6, 0.00, 100.00, TRUE, 3)
 ON CONFLICT (policy_name) DO NOTHING;
+

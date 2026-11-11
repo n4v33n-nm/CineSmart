@@ -12,3 +12,4 @@ public enum RefundStatus {
         return this == COMPLETED || this == REJECTED || this == FAILED;
     }
 }
+

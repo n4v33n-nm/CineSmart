@@ -186,3 +186,4 @@ public class CancellationPreviewResponseDTO {
         this.couponRestored = couponRestored;
     }
 }
+

@@ -29,3 +29,4 @@ public class CancellationPolicyController {
         return ResponseEntity.ok(ApiResponse.success("Active cancellation policies retrieved", policies));
     }
 }
+

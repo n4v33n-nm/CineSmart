@@ -142,3 +142,4 @@ public class CancellationPolicyService {
         return new CancellationPolicy("Default Full Refund", "Standard early cancellation", 0, null, new BigDecimal("100.00"), BigDecimal.ZERO, 0);
     }
 }
+
