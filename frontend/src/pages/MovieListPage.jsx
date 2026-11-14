@@ -22,7 +22,7 @@ export function MovieListPage() {
         setError(null);
         const genreParam = selectedGenre === 'All' ? null : selectedGenre;
         const data = await movieService.getMovies(genreParam, searchQuery || null);
-        setMovies(data);
+        setMovies(Array.isArray(data) ? data : []);
       } catch (err) {
         setError(err.message || 'Failed to load movies.');
       } finally {

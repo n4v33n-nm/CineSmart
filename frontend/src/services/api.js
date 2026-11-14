@@ -12,6 +12,166 @@ import {
 
 const BASE_URL = '/api';
 
+function generateMockAnalyticsOverview() {
+  const dates = [];
+  const now = new Date();
+  for (let i = 14; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+
+  const dailyRevenue = dates.map((date, idx) => ({
+    date,
+    label: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    value: 1200 + (idx * 240) + ((idx % 3) * 350),
+    count: 3 + (idx % 4)
+  }));
+
+  const dailyBookings = dates.map((date, idx) => ({
+    date,
+    label: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    value: 3 + (idx % 4),
+    count: 3 + (idx % 4)
+  }));
+
+  return {
+    kpi: {
+      totalUsers: 48,
+      totalBookings: 64,
+      confirmedBookings: 52,
+      cancelledBookings: 12,
+      totalGrossRevenue: 38450.00,
+      totalRefundAmount: 4200.00,
+      netRevenue: 34250.00,
+      totalMovies: 6,
+      totalTheatres: 3,
+      averageOccupancyPercentage: 74.8,
+      confirmedRate: 81.3,
+      cancellationRate: 18.7
+    },
+    revenue: {
+      dailyRevenue,
+      weeklyRevenue: [
+        { label: 'Week 41', value: 7200, count: 12 },
+        { label: 'Week 42', value: 9400, count: 16 },
+        { label: 'Week 43', value: 10850, count: 18 },
+        { label: 'Week 44', value: 11000, count: 18 }
+      ],
+      monthlyRevenue: [
+        { label: 'August', value: 24500, count: 42 },
+        { label: 'September', value: 31200, count: 54 },
+        { label: 'October', value: 36800, count: 62 },
+        { label: 'November', value: 38450, count: 64 }
+      ],
+      currentPeriodTotal: 38450.00,
+      previousPeriodTotal: 31200.00,
+      growthPercentage: 23.2
+    },
+    bookings: {
+      dailyBookings,
+      weeklyBookings: [
+        { label: 'Week 41', value: 12, count: 12 },
+        { label: 'Week 42', value: 16, count: 16 },
+        { label: 'Week 43', value: 18, count: 18 },
+        { label: 'Week 44', value: 18, count: 18 }
+      ],
+      monthlyBookings: [
+        { label: 'August', value: 42, count: 42 },
+        { label: 'September', value: 54, count: 54 },
+        { label: 'October', value: 62, count: 62 },
+        { label: 'November', value: 64, count: 64 }
+      ],
+      statusDistribution: [
+        { category: 'CONFIRMED', value: 52, percentage: 81.25, color: '#10B981' },
+        { category: 'CANCELLED', value: 12, percentage: 18.75, color: '#EF4444' }
+      ],
+      totalBookingsCount: 64
+    },
+    movies: {
+      mostBookedMovies: [
+        { category: 'Interstellar Odyssey', value: 26, percentage: 40.6, color: '#E50914' },
+        { category: 'Dune: The Desert Prophecy', value: 18, percentage: 28.1, color: '#D97706' },
+        { category: 'Cyber City 2099', value: 12, percentage: 18.8, color: '#06B6D4' },
+        { category: 'The Dark Knight Returns', value: 8, percentage: 12.5, color: '#8B5CF6' }
+      ],
+      popularGenres: [
+        { category: 'Sci-Fi', value: 44, percentage: 68.75, color: '#38BDF8' },
+        { category: 'Action', value: 20, percentage: 31.25, color: '#F43F5E' }
+      ],
+      movieRevenue: [
+        { category: 'Interstellar Odyssey', value: 17200, percentage: 44.7, color: '#E50914' },
+        { category: 'Dune: The Desert Prophecy', value: 11400, percentage: 29.6, color: '#D97706' },
+        { category: 'Cyber City 2099', value: 6250, percentage: 16.3, color: '#06B6D4' },
+        { category: 'The Dark Knight Returns', value: 3600, percentage: 9.4, color: '#8B5CF6' }
+      ]
+    },
+    theatres: {
+      theatreBookings: [
+        { category: 'CineSmart Central', value: 38, percentage: 59.4, color: '#E50914' },
+        { category: 'Nexus Mall IMAX', value: 16, percentage: 25.0, color: '#06B6D4' },
+        { category: 'Phoenix Grand', value: 10, percentage: 15.6, color: '#F59E0B' }
+      ],
+      theatreRevenue: [
+        { category: 'CineSmart Central', value: 22800, percentage: 59.3, color: '#E50914' },
+        { category: 'Nexus Mall IMAX', value: 9900, percentage: 25.7, color: '#06B6D4' },
+        { category: 'Phoenix Grand', value: 5750, percentage: 15.0, color: '#F59E0B' }
+      ],
+      theatreOccupancy: [
+        { category: 'CineSmart Central', value: 82.5, percentage: 82.5, color: '#10B981' },
+        { category: 'Nexus Mall IMAX', value: 74.0, percentage: 74.0, color: '#38BDF8' },
+        { category: 'Phoenix Grand', value: 67.8, percentage: 67.8, color: '#F59E0B' }
+      ],
+      showPerformance: [
+        { showId: 1, movieTitle: 'Interstellar Odyssey', cinemaName: 'CineSmart Central', screenName: 'Screen 1 (IMAX 3D)', showTime: '18:45', ticketsSold: 28, occupancyPercent: 87.5, revenue: 14000 },
+        { showId: 2, movieTitle: 'Dune: The Desert Prophecy', cinemaName: 'CineSmart Central', screenName: 'Screen 2 (Dolby Atmos)', showTime: '21:30', ticketsSold: 22, occupancyPercent: 78.6, revenue: 8800 },
+        { showId: 3, movieTitle: 'Cyber City 2099', cinemaName: 'Nexus Mall IMAX', screenName: 'Screen 1 (IMAX 3D)', showTime: '16:00', ticketsSold: 18, occupancyPercent: 75.0, revenue: 7200 }
+      ]
+    },
+    marketingRefunds: {
+      totalCouponsApplied: 18,
+      totalCouponDiscountAmount: 3200.00,
+      topCoupons: [
+        { category: 'WELCOME50', value: 12, percentage: 66.7, color: '#10B981' },
+        { category: 'FESTIVE25', value: 4, percentage: 22.2, color: '#38BDF8' },
+        { category: 'BLOCKBUSTER', value: 2, percentage: 11.1, color: '#F59E0B' }
+      ],
+      totalLoyaltyPointsEarned: 3845,
+      totalLoyaltyPointsRedeemed: 1650,
+      totalLoyaltyDiscountAmount: 1650.00,
+      totalRefundRequests: 12,
+      completedRefundsCount: 10,
+      rejectedRefundsCount: 1,
+      pendingRefundsCount: 1,
+      cancellationRatePercent: 18.7,
+      refundStatusDistribution: [
+        { category: 'COMPLETED', value: 10, percentage: 83.3, color: '#10B981' },
+        { category: 'REJECTED', value: 1, percentage: 8.3, color: '#EF4444' },
+        { category: 'REQUESTED', value: 1, percentage: 8.3, color: '#F59E0B' }
+      ]
+    },
+    filterOptions: {
+      movies: [
+        { id: 1, name: 'Interstellar Odyssey' },
+        { id: 2, name: 'Dune: The Desert Prophecy' },
+        { id: 3, name: 'Cyber City 2099' },
+        { id: 4, name: 'The Dark Knight Returns' }
+      ],
+      cinemas: [
+        { id: 1, name: 'CineSmart Central' },
+        { id: 2, name: 'Nexus Mall IMAX' },
+        { id: 3, name: 'Phoenix Grand' }
+      ],
+      shows: [
+        { id: 1, name: 'Interstellar Odyssey - CineSmart Central (18:45)' },
+        { id: 2, name: 'Dune - CineSmart Central (21:30)' },
+        { id: 3, name: 'Cyber City 2099 - Nexus Mall (16:00)' }
+      ],
+      statuses: ['ALL', 'CONFIRMED', 'CANCELLED', 'HELD', 'PENDING']
+    }
+  };
+}
+
 function handleMockRequest(endpoint, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
   const [path, queryString] = endpoint.split('?');
@@ -235,7 +395,21 @@ function handleMockRequest(endpoint, options = {}) {
     };
   }
 
-  // 9. Admin fallbacks
+  // 9. Admin Analytics fallbacks
+  if (path.startsWith('/admin/analytics/')) {
+    const overview = generateMockAnalyticsOverview();
+    if (path.endsWith('/overview')) return { data: overview };
+    if (path.endsWith('/kpi')) return { data: overview.kpi };
+    if (path.endsWith('/revenue')) return { data: overview.revenue };
+    if (path.endsWith('/bookings')) return { data: overview.bookings };
+    if (path.endsWith('/movies')) return { data: overview.movies };
+    if (path.endsWith('/theatres')) return { data: overview.theatres };
+    if (path.endsWith('/marketing-refunds')) return { data: overview.marketingRefunds };
+    if (path.endsWith('/filter-options')) return { data: overview.filterOptions };
+    return { data: overview };
+  }
+
+  // 10. General Admin fallbacks
   if (path.startsWith('/admin/')) {
     return { data: { success: true, message: 'Admin operation recorded' } };
   }

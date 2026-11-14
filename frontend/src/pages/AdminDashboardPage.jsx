@@ -5,6 +5,7 @@ import { movieService } from '../services/movieService';
 import { showService } from '../services/showService';
 import { couponService } from '../services/couponService';
 import { refundService } from '../services/refundService';
+import { AdminAnalyticsDashboard } from '../components/analytics/AdminAnalyticsDashboard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
 import {
@@ -31,11 +32,12 @@ import {
   Percent,
   Sliders,
   RefreshCw,
-  Ban
+  Ban,
+  BarChart3
 } from 'lucide-react';
 
 export function AdminDashboardPage() {
-  const [activeTab, setActiveTab] = useState('movies'); // 'movies' | 'shows' | 'screens' | 'coupons' | 'refunds' | 'policies'
+  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'movies' | 'shows' | 'screens' | 'coupons' | 'refunds' | 'policies'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
@@ -536,6 +538,14 @@ export function AdminDashboardPage() {
         {/* Tab Controls */}
         <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--bg-glass)', padding: '0.35rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
           <button
+            onClick={() => setActiveTab('analytics')}
+            className={activeTab === 'analytics' ? 'btn-primary' : 'btn-secondary'}
+            style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+          >
+            <BarChart3 size={15} />
+            <span>Analytics & KPIs</span>
+          </button>
+          <button
             onClick={() => setActiveTab('movies')}
             className={activeTab === 'movies' ? 'btn-primary' : 'btn-secondary'}
             style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
@@ -629,6 +639,13 @@ export function AdminDashboardPage() {
       {error && (
         <div style={{ marginBottom: '1.5rem' }}>
           <ErrorMessage message={error} />
+        </div>
+      )}
+
+      {/* TAB 0: ANALYTICS & TELEMETRY */}
+      {activeTab === 'analytics' && (
+        <div style={{ marginBottom: '2.5rem' }}>
+          <AdminAnalyticsDashboard />
         </div>
       )}
 

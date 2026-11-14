@@ -8,7 +8,7 @@ export const movieService = {
 
     const query = params.toString() ? `?${params.toString()}` : '';
     const res = await api.get(`/movies${query}`);
-    return res.data || [];
+    return Array.isArray(res) ? res : (res?.data || []);
   },
 
   async getMovieById(id) {
