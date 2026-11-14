@@ -3,6 +3,7 @@ package com.cinesmart.movie.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -38,6 +39,15 @@ public class Movie {
 
     @Column(name = "poster_url", length = 500)
     private String posterUrl;
+
+    @Column(name = "rating")
+    private Double rating = 8.0;
+
+    @Column(name = "release_date")
+    private LocalDate releaseDate = LocalDate.now();
+
+    @Column(name = "total_reviews")
+    private Integer totalReviews = 0;
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
@@ -129,6 +139,30 @@ public class Movie {
 
     public void setPosterUrl(String posterUrl) {
         this.posterUrl = posterUrl;
+    }
+
+    public Double getRating() {
+        return rating != null ? rating : 8.0;
+    }
+
+    public void setRating(Double rating) {
+        this.rating = rating;
+    }
+
+    public LocalDate getReleaseDate() {
+        return releaseDate != null ? releaseDate : LocalDate.now();
+    }
+
+    public void setReleaseDate(LocalDate releaseDate) {
+        this.releaseDate = releaseDate;
+    }
+
+    public Integer getTotalReviews() {
+        return totalReviews != null ? totalReviews : 0;
+    }
+
+    public void setTotalReviews(Integer totalReviews) {
+        this.totalReviews = totalReviews;
     }
 
     public boolean isActive() {

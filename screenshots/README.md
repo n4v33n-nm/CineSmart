@@ -31,3 +31,4 @@ This directory contains high-resolution (1440x900 @ 1.5x Retina DPI) screenshots
 - **Resolution:** 2160 × 1350 px (1440 × 900 CSS viewport @ 1.5x devicePixelRatio)
 - **Format:** Lossless PNG
 - **Environment:** Production-grade PostgreSQL database integration, real-time Spring Boot 3.3 REST APIs, and React 18 frontend.
+

@@ -35,6 +35,9 @@ public class User {
     @Column(nullable = false, length = 30)
     private UserRole role = UserRole.ROLE_CUSTOMER;
 
+    @Column(name = "preferred_genres", length = 200)
+    private String preferredGenres;
+
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
@@ -107,6 +110,14 @@ public class User {
 
     public void setRole(UserRole role) {
         this.role = role;
+    }
+
+    public String getPreferredGenres() {
+        return preferredGenres;
+    }
+
+    public void setPreferredGenres(String preferredGenres) {
+        this.preferredGenres = preferredGenres;
     }
 
     public boolean isActive() {

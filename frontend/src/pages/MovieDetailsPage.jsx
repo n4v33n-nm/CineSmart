@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { movieService } from '../services/movieService';
+import { recommendationService } from '../services/recommendationService';
+import { RecommendationCard } from '../components/RecommendationCard';
 import { ShowCard } from '../components/ShowCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
-import { Clock, Calendar, Globe, Film, ArrowLeft, Ticket, Shield } from 'lucide-react';
+import { Clock, Calendar, Globe, Film, ArrowLeft, Ticket, Shield, Sparkles } from 'lucide-react';
 
 export function MovieDetailsPage() {
   const { id } = useParams();
   const [movie, setMovie] = useState(null);
   const [shows, setShows] = useState([]);
+  const [similarMovies, setSimilarMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -18,12 +21,14 @@ export function MovieDetailsPage() {
       try {
         setLoading(true);
         setError(null);
-        const [movieData, showsData] = await Promise.all([
+        const [movieData, showsData, similarData] = await Promise.all([
           movieService.getMovieById(id),
-          movieService.getShowsForMovie(id)
+          movieService.getShowsForMovie(id),
+          recommendationService.getSimilarMovies(id, 4).catch(() => [])
         ]);
         setMovie(movieData);
         setShows(showsData);
+        setSimilarMovies(similarData || []);
       } catch (err) {
         setError(err.message || 'Unable to load movie details.');
       } finally {
@@ -159,6 +164,33 @@ export function MovieDetailsPage() {
           </div>
         )}
       </section>
+
+      {/* SECTION: More Like This (Similar Movies) */}
+      {similarMovies && similarMovies.length > 0 && (
+        <section style={{ marginTop: '4rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.5rem' }}>
+            <Sparkles size={24} color="var(--accent-red)" />
+            <div>
+              <h2 style={{ fontSize: '1.6rem', fontWeight: 700, margin: 0, color: '#fff' }}>
+                More Like This
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '4px 0 0' }}>
+                Explore similar {movie.genre} titles curated by our recommendation engine
+              </p>
+            </div>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+            gap: '1.5rem'
+          }}>
+            {similarMovies.map((rec) => (
+              <RecommendationCard key={`sim-${rec.movie.id}`} recommendation={rec} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

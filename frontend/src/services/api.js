@@ -161,7 +161,81 @@ function handleMockRequest(endpoint, options = {}) {
     };
   }
 
-  // 8. Admin fallbacks
+  // 8. Recommendations (Phase 5)
+  if (path === '/recommendations/home-sections' && method === 'GET') {
+    const list = (MOCK_MOVIES || []).map((m, idx) => ({
+      movie: m,
+      score: 0.95 - (idx * 0.05),
+      matchPercentage: 98 - (idx * 4),
+      recommendationReason: idx === 0 ? 'Top Pick matching your genre preferences' : 'Popular in theaters right now',
+      category: 'PERSONALIZED',
+      matchHighlight: `${98 - (idx * 4)}% Match • Highly Recommended`
+    }));
+    return {
+      data: {
+        recommendedForYou: list.slice(0, 4),
+        becauseYouWatched: {
+          sourceMovie: MOCK_MOVIES[0],
+          recommendations: list.slice(1, 4)
+        },
+        trendingMovies: list,
+        popularMovies: list,
+        newReleases: list,
+        topRated: list,
+        isPersonalized: true,
+        preferredGenres: ['Sci-Fi', 'Action']
+      }
+    };
+  }
+  if (path === '/recommendations/personalized' && method === 'GET') {
+    return {
+      data: (MOCK_MOVIES || []).map((m, idx) => ({
+        movie: m,
+        score: 0.95 - (idx * 0.05),
+        matchPercentage: 98 - (idx * 4),
+        recommendationReason: 'Personalized based on your viewing history',
+        category: 'PERSONALIZED',
+        matchHighlight: `${98 - (idx * 4)}% Match • Must Watch`
+      }))
+    };
+  }
+  const similarMatch = path.match(/^\/recommendations\/movies\/(\d+)\/similar$/);
+  if (similarMatch && method === 'GET') {
+    const sourceId = Number(similarMatch[1]);
+    const others = (MOCK_MOVIES || []).filter(m => m.id !== sourceId);
+    return {
+      data: others.map((m, idx) => ({
+        movie: m,
+        score: 0.90 - (idx * 0.05),
+        matchPercentage: 95 - (idx * 4),
+        recommendationReason: `Fans of movie #${sourceId} also loved this`,
+        category: 'SIMILAR',
+        matchHighlight: `${95 - (idx * 4)}% Match • Similar Genre`
+      }))
+    };
+  }
+  if (path === '/recommendations/preferences' && method === 'GET') {
+    return {
+      data: {
+        userId: 1,
+        email: 'user@cinesmart.com',
+        preferredGenres: ['Sci-Fi', 'Action'],
+        availableGenres: ['Action', 'Sci-Fi', 'Drama', 'Animation', 'Adventure', 'Crime', 'Comedy', 'Thriller', 'Horror']
+      }
+    };
+  }
+  if (path === '/recommendations/preferences' && method === 'PUT') {
+    return {
+      data: {
+        userId: 1,
+        email: 'user@cinesmart.com',
+        preferredGenres: body.preferredGenres || ['Sci-Fi', 'Action'],
+        availableGenres: ['Action', 'Sci-Fi', 'Drama', 'Animation', 'Adventure', 'Crime', 'Comedy', 'Thriller', 'Horror']
+      }
+    };
+  }
+
+  // 9. Admin fallbacks
   if (path.startsWith('/admin/')) {
     return { data: { success: true, message: 'Admin operation recorded' } };
   }
