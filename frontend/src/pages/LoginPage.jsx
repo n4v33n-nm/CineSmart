@@ -14,7 +14,13 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const redirectPath = location.state?.from?.pathname || '/';
+  const fromPath = location.state?.from?.pathname;
+
+  const getDefaultRouteForRole = (role) => {
+    if (role === 'ROLE_ADMIN') return '/admin';
+    if (role === 'ROLE_STAFF') return '/verify-tickets';
+    return '/';
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,8 +32,9 @@ export function LoginPage() {
     try {
       setLoading(true);
       setError(null);
-      await login(email, password);
-      navigate(redirectPath, { replace: true });
+      const data = await login(email, password);
+      const target = fromPath || getDefaultRouteForRole(data?.user?.role);
+      navigate(target, { replace: true });
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
@@ -41,8 +48,9 @@ export function LoginPage() {
     try {
       setLoading(true);
       setError(null);
-      await login(demoEmail, demoPassword);
-      navigate(redirectPath, { replace: true });
+      const data = await login(demoEmail, demoPassword);
+      const target = fromPath || getDefaultRouteForRole(data?.user?.role);
+      navigate(target, { replace: true });
     } catch (err) {
       setError(err.message || 'Demo login failed.');
     } finally {

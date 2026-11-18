@@ -33,9 +33,9 @@ public class LoyaltyService {
     @Value("${cinesmart.loyalty.point-value-in-rupees:1.00}")
     private BigDecimal pointValueInRupees = BigDecimal.valueOf(1.00);
 
-    // Default earn rate: 1 Point for every ₹10.00 spent
-    @Value("${cinesmart.loyalty.rupees-per-point:10.00}")
-    private BigDecimal rupeesPerPoint = BigDecimal.valueOf(10.00);
+    // Default earn rate: 1 Point for every ₹100.00 spent
+    @Value("${cinesmart.loyalty.rupees-per-point:100.00}")
+    private BigDecimal rupeesPerPoint = BigDecimal.valueOf(100.00);
 
     private final LoyaltyAccountRepository loyaltyAccountRepository;
     private final LoyaltyTransactionRepository loyaltyTransactionRepository;

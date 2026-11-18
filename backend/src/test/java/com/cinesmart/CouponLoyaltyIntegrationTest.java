@@ -222,9 +222,9 @@ class CouponLoyaltyIntegrationTest {
 
         // Step 6: Verify Loyalty points balance:
         // Started with 100. Redeemed 40 -> 60.
-        // Earned points for paying expectedPayable (at least ₹310 -> at least 31 points)
+        // Earned points for paying expectedPayable (at least ₹310 -> at least 3 points at 1 pt / ₹100)
         LoyaltyAccountDTO userLoyalty = loyaltyService.getAccountForUser(testUser.getEmail());
-        assertTrue(userLoyalty.getPointsBalance() >= 91); // 60 + ~31
+        assertTrue(userLoyalty.getPointsBalance() >= 63); // 60 + ~3
         assertEquals(40, userLoyalty.getLifetimePointsRedeemed());
 
         // Step 7: Booking Cancellation Reversal:

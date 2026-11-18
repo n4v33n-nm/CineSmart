@@ -7,6 +7,9 @@ export function Navbar() {
   const { user, logout, isAdmin, isStaff } = useAuth();
   const navigate = useNavigate();
 
+  const isCustomerView = !isAdmin && !isStaff;
+  const brandLink = isAdmin ? '/admin' : isStaff ? '/verify-tickets' : '/';
+
   const handleLogout = () => {
     logout();
     navigate('/');
@@ -15,7 +18,7 @@ export function Navbar() {
   return (
     <header className="glass-panel" style={{ position: 'sticky', top: 0, zIndex: 100, borderLeft: 'none', borderRight: 'none', borderTop: 'none', borderRadius: 0 }}>
       <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0.85rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', textDecoration: 'none' }}>
+        <Link to={brandLink} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', textDecoration: 'none' }}>
           <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'linear-gradient(135deg, #e50914, #ff334b)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(229, 9, 20, 0.4)' }}>
             <Film size={22} color="#fff" />
           </div>
@@ -25,23 +28,29 @@ export function Navbar() {
         </Link>
 
         <nav style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-          <Link to="/movies" style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.95rem', transition: 'color 0.2s' }}>
-            Movies
-          </Link>
+          {isCustomerView && (
+            <Link to="/movies" style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.95rem', transition: 'color 0.2s' }}>
+              Movies
+            </Link>
+          )}
 
           {user ? (
             <>
-              <Link to="/bookings" style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <Ticket size={17} />
-                <span>My Bookings</span>
-              </Link>
+              {isCustomerView && (
+                <>
+                  <Link to="/bookings" style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Ticket size={17} />
+                    <span>My Bookings</span>
+                  </Link>
 
-              <Link to="/rewards" style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <Gift size={17} color="var(--accent-gold)" />
-                <span>Rewards</span>
-              </Link>
+                  <Link to="/rewards" style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Gift size={17} color="var(--accent-gold)" />
+                    <span>Rewards</span>
+                  </Link>
+                </>
+              )}
 
-              {(isAdmin || isStaff) && (
+              {isStaff && (
                 <Link to="/verify-tickets" className="badge badge-cyan" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.65rem' }}>
                   <QrCode size={14} />
                   <span>Verify Tickets</span>

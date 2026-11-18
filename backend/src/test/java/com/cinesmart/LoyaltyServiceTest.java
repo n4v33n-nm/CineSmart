@@ -123,16 +123,16 @@ class LoyaltyServiceTest {
     }
 
     @Test
-    @DisplayName("Award points for booking awards 1 point per ₹10 spent idempotently")
+    @DisplayName("Award points for booking awards 1 point per ₹100 spent idempotently")
     void testAwardPointsForBooking() {
         when(loyaltyTransactionRepository.existsByBookingIdAndTransactionType(20L, LoyaltyTransactionType.EARNED)).thenReturn(false);
         when(loyaltyAccountRepository.findByUserId(5L)).thenReturn(Optional.of(testAccount));
 
-        // Booking is ₹500 -> 50 points
+        // Booking is ₹500 -> 5 points (1 point per ₹100 spent)
         loyaltyService.awardPointsForBooking(testBooking);
 
-        assertEquals(200, testAccount.getPointsBalance()); // 150 + 50
-        assertEquals(250, testAccount.getLifetimePointsEarned()); // 200 + 50
+        assertEquals(155, testAccount.getPointsBalance()); // 150 + 5
+        assertEquals(205, testAccount.getLifetimePointsEarned()); // 200 + 5
         verify(loyaltyTransactionRepository, times(1)).save(any(LoyaltyTransaction.class));
     }
 

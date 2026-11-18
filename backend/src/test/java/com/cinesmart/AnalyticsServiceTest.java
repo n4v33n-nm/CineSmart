@@ -276,8 +276,8 @@ public class AnalyticsServiceTest {
         assertEquals(1L, mkt.getCouponUsage().get(0).getCount());
         assertEquals(new BigDecimal("50.00"), mkt.getCouponUsage().get(0).getValue());
 
-        // Loyalty points earned = 50 + 25 = 75, redeemed = 20, discount = 20.00
-        assertEquals(75L, mkt.getLoyaltyPointsEarnedTotal());
+        // Loyalty points earned = floor(500/100) + floor(250/100) = 5 + 2 = 7, redeemed = 20, discount = 20.00
+        assertEquals(7L, mkt.getLoyaltyPointsEarnedTotal());
         assertEquals(20L, mkt.getLoyaltyPointsRedeemedTotal());
         assertEquals(new BigDecimal("20.00"), mkt.getLoyaltyDiscountTotal());
 

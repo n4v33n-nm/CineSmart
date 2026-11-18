@@ -129,7 +129,7 @@ export function LoyaltyRewardsPage() {
             {account ? account.lifetimePointsEarned : 0} <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-muted)' }}>pts</span>
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            1 Point awarded per ₹10 spent
+            1 Point awarded per ₹100 spent
           </div>
         </div>
 

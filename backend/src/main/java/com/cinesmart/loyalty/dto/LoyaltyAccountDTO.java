@@ -30,7 +30,7 @@ public class LoyaltyAccountDTO {
         dto.setRupeeValue(BigDecimal.valueOf(balance).multiply(conversionRate != null ? conversionRate : BigDecimal.ONE));
         dto.setLifetimePointsEarned(account.getLifetimePointsEarned());
         dto.setLifetimePointsRedeemed(account.getLifetimePointsRedeemed());
-        dto.setEarnRateDescription("Earn 1 reward point for every ₹10 spent on confirmed bookings");
+        dto.setEarnRateDescription("Earn 1 reward point for every ₹100 spent on confirmed bookings");
         dto.setRedemptionRateDescription("1 Reward Point = ₹1.00 instant discount on tickets");
         return dto;
     }

@@ -567,8 +567,8 @@ public class AnalyticsService {
             }
 
             if (b.getStatus() == BookingStatus.CONFIRMED && b.getTotalAmount() != null) {
-                // In CineSmart, patrons earn 1 point per 10 INR spent (10% back in points)
-                loyaltyEarned += b.getTotalAmount().divide(BigDecimal.TEN, 0, RoundingMode.FLOOR).longValue();
+                // In CineSmart, patrons earn 1 point per 100 INR spent (1% back in points)
+                loyaltyEarned += b.getTotalAmount().divide(BigDecimal.valueOf(100), 0, RoundingMode.FLOOR).longValue();
             }
 
             if (b.getLoyaltyPointsRedeemed() != null) {

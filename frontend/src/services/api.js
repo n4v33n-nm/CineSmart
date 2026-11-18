@@ -136,7 +136,7 @@ function generateMockAnalyticsOverview() {
         { category: 'FESTIVE25', value: 4, percentage: 22.2, color: '#38BDF8' },
         { category: 'BLOCKBUSTER', value: 2, percentage: 11.1, color: '#F59E0B' }
       ],
-      totalLoyaltyPointsEarned: 3845,
+      totalLoyaltyPointsEarned: 384,
       totalLoyaltyPointsRedeemed: 1650,
       totalLoyaltyDiscountAmount: 1650.00,
       totalRefundRequests: 12,

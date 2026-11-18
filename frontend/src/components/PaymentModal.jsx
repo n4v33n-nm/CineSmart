@@ -844,7 +844,7 @@ export function PaymentModal({ booking, onClose, onBookingCompleted }) {
                 </div>
               ) : (
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  You will earn <strong>1 reward point for every ₹10 spent</strong> on this confirmed booking!
+                  You will earn <strong>1 reward point for every ₹100 spent</strong> on this confirmed booking!
                 </div>
               )}
             </div>
